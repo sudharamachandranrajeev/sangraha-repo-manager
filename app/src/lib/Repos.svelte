@@ -79,6 +79,11 @@
     return { all: c.all, attention: c.attention, unpushed: c.unpushed, ciRed: c.ciRed, alerts: c.alerts, notCloned: c.notCloned, localOnly: c.localOnly, hidden: c.hidden }[f]
   }
 
+  /** Every repository on the board, for the bulk change sheet. */
+  export function allRows(): Row[] {
+    return board?.rows ?? []
+  }
+
   export function focusSearch() {
     search?.focus()
   }

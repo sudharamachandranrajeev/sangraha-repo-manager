@@ -21,6 +21,7 @@ Usage:
   sangraha leaks [PATH]
   sangraha hook install|remove [PATH... | --all] | sangraha hook status
   sangraha gate [PATH]
+  sangraha bulk --repos all|public|OWNER/NAME,... CHANGES... [--pr] [--apply]
 
 status    What needs attention. Reads GitHub through your gh login (gh auth login).
   --all       every repository, not only those that need attention
@@ -50,6 +51,18 @@ hook      Install the leak check as a pre-push hook in the clones named (or --al
           that was there before keeps running after it. remove takes it out.
 gate      Should a release go out? No, while shipped dependencies have open high or
           critical alerts on GitHub, or npm audit finds some. Exit status 1 if not.
+
+bulk      One change to many repositories. Shows what would change (a dry run) unless
+          --apply is given. --repos all and public leave out archived repositories and forks.
+  --set NAME=on|off   security-alerts, security-fixes, secret-scanning, push-protection,
+                      delete-branch-on-merge, auto-merge, squash-merge, merge-commit,
+                      rebase-merge
+  --topic +NAME / --topic -NAME   add or remove a topic
+  --dependabot        add .github/dependabot.yml, made from each repository's manifests
+  --copy OWNER/NAME:PATH          copy a file from another repository (same path)
+  --replace           replace files that exist and differ (otherwise they are left)
+  --pr                files through a pull request, not a commit on the default branch
+  --message TEXT      commit message and pull request title
 ";
 
 fn main() -> ExitCode {
@@ -82,6 +95,7 @@ fn main() -> ExitCode {
         Some("check-push") => check_push(args.get(2).map(String::as_str).unwrap_or("")),
         Some("hook") => hook(args.get(1).map(String::as_str), &args[2..], flag("--all")),
         Some("gate") => gate(args.get(1).map(PathBuf::from)),
+        Some("bulk") => bulk(&args[1..]),
         Some("-V" | "--version") => {
             println!("sangraha {}", env!("CARGO_PKG_VERSION"));
             Ok(ExitCode::SUCCESS)
@@ -658,4 +672,159 @@ fn gate(path: Option<PathBuf>) -> Result<ExitCode, String> {
         full.map(|f| format!(" {f}")).unwrap_or_default()
     );
     Ok(ExitCode::SUCCESS)
+}
+
+fn setting(name: &str) -> Option<sangraha_core::bulk::Setting> {
+    use sangraha_core::bulk::Setting::*;
+    Some(match name {
+        "security-alerts" => SecurityAlerts,
+        "security-fixes" => SecurityFixes,
+        "secret-scanning" => SecretScanning,
+        "push-protection" => PushProtection,
+        "delete-branch-on-merge" => DeleteBranchOnMerge,
+        "auto-merge" => AutoMerge,
+        "squash-merge" => SquashMerge,
+        "merge-commit" => MergeCommit,
+        "rebase-merge" => RebaseMerge,
+        _ => return None,
+    })
+}
+
+fn bulk(args: &[String]) -> Result<ExitCode, String> {
+    use sangraha_core::bulk::{FileChange, Request, Source};
+    let mut req = Request::default();
+    let mut apply = false;
+    let mut replace = false;
+    let mut repos = String::new();
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        let mut value = || it.next().cloned().ok_or(format!("{a} needs a value"));
+        match a.as_str() {
+            "--repos" => repos = value()?,
+            "--set" => {
+                let v = value()?;
+                let (name, state) = v
+                    .split_once('=')
+                    .ok_or(format!("--set {v}: write NAME=on or NAME=off"))?;
+                let s = setting(name).ok_or(format!(
+                    "{name}: not a setting Sangraha knows (see sangraha --help)"
+                ))?;
+                let on = match state {
+                    "on" => true,
+                    "off" => false,
+                    _ => return Err(format!("--set {v}: on or off")),
+                };
+                req.settings.insert(s, on);
+            }
+            "--topic" => {
+                let v = value()?;
+                match (v.strip_prefix('+'), v.strip_prefix('-')) {
+                    (Some(t), _) => req.add_topics.push(t.to_owned()),
+                    (_, Some(t)) => req.remove_topics.push(t.to_owned()),
+                    _ => return Err(format!("--topic {v}: write +name or -name")),
+                }
+            }
+            "--dependabot" => req.files.push(FileChange {
+                path: ".github/dependabot.yml".into(),
+                source: Source::Dependabot,
+                replace: false,
+            }),
+            "--copy" => {
+                let v = value()?;
+                let (repo, path) = v
+                    .split_once(':')
+                    .ok_or(format!("--copy {v}: write OWNER/NAME:PATH"))?;
+                req.files.push(FileChange {
+                    path: path.to_owned(),
+                    source: Source::Copy {
+                        repo: repo.to_owned(),
+                        path: path.to_owned(),
+                    },
+                    replace: false,
+                });
+            }
+            "--replace" => replace = true,
+            "--pr" => req.pull_request = true,
+            "--message" => req.message = value()?,
+            "--apply" => apply = true,
+            other => return Err(format!("{other}: unknown option for bulk")),
+        }
+    }
+    for f in &mut req.files {
+        f.replace = replace;
+    }
+    let snap = sangraha_core::cache::Cache::open_default()
+        .ok()
+        .and_then(|c| c.snapshot().ok().flatten())
+        .ok_or("run sangraha status once first, so Sangraha knows your repositories")?;
+    req.repos =
+        match repos.as_str() {
+            "" => return Err(
+                "say which repositories: --repos all, --repos public or --repos owner/a,owner/b"
+                    .into(),
+            ),
+            "all" | "public" => snap
+                .repos
+                .iter()
+                .filter(|r| !r.archived && !r.fork && (repos == "all" || !r.private))
+                .map(|r| r.full_name.clone())
+                .collect(),
+            list => list
+                .split(',')
+                .map(|r| r.trim().to_owned())
+                .filter(|r| !r.is_empty())
+                .collect(),
+        };
+    let cfg = Config::load();
+    let plan = if apply {
+        sangraha_core::bulk_apply(&cfg, &req, &|repo| eprintln!("{repo}…"))
+    } else {
+        sangraha_core::bulk_plan(&cfg, &req)
+    }
+    .map_err(|e| e.to_string())?;
+    for r in &plan.repos {
+        out!("{}", r.repo);
+        if let Some(e) = &r.error {
+            out!("  ✗ {e}");
+        }
+        for s in &r.steps {
+            match &s.note {
+                None => out!(
+                    "  {} {}: {} → {}",
+                    if apply { "✓" } else { "•" },
+                    s.label,
+                    s.now,
+                    s.then
+                ),
+                Some(n) => out!("    {}: {n}", s.label),
+            }
+        }
+        if let Some(pr) = &r.pull_request {
+            out!("  pull request: {pr}");
+        }
+    }
+    out!("");
+    if apply {
+        let failed = plan.repos.iter().filter(|r| r.error.is_some()).count();
+        out!(
+            "{} changes made; {failed} repositories failed.",
+            plan.changes
+        );
+        Ok(if failed > 0 {
+            ExitCode::from(1)
+        } else {
+            ExitCode::SUCCESS
+        })
+    } else {
+        out!(
+            "Dry run: {} changes in {} repositories. Files would be committed as {}. Add --apply to make them.",
+            plan.changes,
+            plan.repos
+                .iter()
+                .filter(|r| r.steps.iter().any(|s| s.change))
+                .count(),
+            plan.author
+        );
+        Ok(ExitCode::SUCCESS)
+    }
 }

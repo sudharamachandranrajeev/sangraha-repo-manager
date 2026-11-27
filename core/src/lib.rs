@@ -6,6 +6,7 @@
 
 pub mod apps;
 pub mod board;
+pub mod bulk;
 pub mod cache;
 pub mod config;
 pub mod github;
@@ -251,6 +252,41 @@ pub fn check_push(
         security::gate(full.as_deref(), Some(repo))
     });
     Ok(PushCheck { leaks, gate })
+}
+
+/// The owner's repositories (`owner/name`, lower case), from the snapshot, read first if
+/// there is none: bulk changes act on these only.
+fn owned(token: &str) -> Result<Vec<String>> {
+    let cache = cache::Cache::open_default()?;
+    let snap = match cache.snapshot()? {
+        Some(s) => s,
+        None => {
+            let s = github::fetch(token)?;
+            cache.set_snapshot(&s)?;
+            s
+        }
+    };
+    Ok(snap
+        .repos
+        .iter()
+        .map(|r| r.full_name.to_lowercase())
+        .collect())
+}
+
+/// The dry run of a bulk change: what would change in each repository. Only reads.
+pub fn bulk_plan(cfg: &Config, req: &bulk::Request) -> Result<bulk::Plan> {
+    let token = github::token()?;
+    bulk::plan(&token, req, &owned(&token)?, &cfg.roots)
+}
+
+/// Makes a bulk change (planning it again first). `progress` hears each repository's name.
+pub fn bulk_apply(
+    cfg: &Config,
+    req: &bulk::Request,
+    progress: &(dyn Fn(&str) + Sync),
+) -> Result<bulk::Plan> {
+    let token = github::token()?;
+    bulk::apply(&token, req, &owned(&token)?, &cfg.roots, progress)
 }
 
 /// Seconds since the Unix epoch.

@@ -14,6 +14,11 @@ async function demo<T>(cmd: string): Promise<T> {
     return b as T
   }
   if (cmd === 'set_hook') return 'Demo: nothing was changed' as T
+  if (cmd === 'bulk_plan' || cmd === 'bulk_apply') {
+    const p = (await (await fetch('/demo/bulk.json')).json()) as BulkPlan
+    if (cmd === 'bulk_apply') p.applied = true
+    return p as T
+  }
   if (cmd.startsWith('set') || cmd.startsWith('save') || cmd === 'settings')
     return {
       roots: ['/home/you/Work'],
@@ -161,6 +166,44 @@ export interface Config {
   termsFile: string | null
   allowedEmails: string[]
   requireSigned: boolean
+}
+
+export type Setting =
+  | 'securityAlerts'
+  | 'securityFixes'
+  | 'secretScanning'
+  | 'pushProtection'
+  | 'deleteBranchOnMerge'
+  | 'autoMerge'
+  | 'squashMerge'
+  | 'mergeCommit'
+  | 'rebaseMerge'
+
+export type FileSource = { kind: 'dependabot' } | { kind: 'copy'; repo: string; path: string } | { kind: 'text'; text: string }
+
+export interface BulkRequest {
+  repos: string[]
+  settings: Partial<Record<Setting, boolean>>
+  addTopics: string[]
+  removeTopics: string[]
+  files: { path: string; source: FileSource; replace: boolean }[]
+  pullRequest: boolean
+  message: string
+}
+
+export interface BulkStep {
+  label: string
+  now: string
+  then: string
+  change: boolean
+  note: string | null
+}
+
+export interface BulkPlan {
+  repos: { repo: string; steps: BulkStep[]; error: string | null; done: string[]; pullRequest: string | null }[]
+  changes: number
+  author: string
+  applied: boolean
 }
 
 export type Severity = 'low' | 'moderate' | 'high' | 'critical'
@@ -318,6 +361,15 @@ export const api = {
   setHook: (path: string, on: boolean) => invoke<string>('set_hook', { path, on }),
   saveLeakSettings: (s: { termsFile: string; allowedEmails: string[]; requireSigned: boolean }) =>
     invoke<Config>('save_leak_settings', s),
+  bulkPlan: (req: BulkRequest) => invoke<BulkPlan>('bulk_plan', { req }),
+  bulkApply: (req: BulkRequest) => invoke<BulkPlan>('bulk_apply', { req }),
+}
+
+/** The repository a bulk change is working on. Does nothing outside the Sangraha window. */
+export async function onBulkProgress(f: (repo: string) => void): Promise<() => void> {
+  if (!inTauri) return () => {}
+  const { listen } = await import('@tauri-apps/api/event')
+  return listen<string>('bulk-progress', (e) => f(e.payload))
 }
 
 /** Download progress while an app installs. Does nothing outside the Sangraha window. */

@@ -75,6 +75,11 @@ changes your files. There is no download yet; build it from source (below).
   if installed). One button adds it to every clone; a hook already there keeps running.
 - 🏁 **Release gate** – pushing a tag is stopped while shipped dependencies have open high or
   critical alerts on GitHub, or `npm audit` finds some.
+- 🧰 **One change, many repositories** – turn on secret scanning, Dependabot updates or *delete
+  branch after merge*, add or remove topics, or add the same file (a Dependabot config made
+  for each repository, or a copy of a file such as `LICENSE`) everywhere at once. **Preview**
+  lists what would change in each repository before anything does. Files go in as a pull
+  request or a commit, under your private GitHub email.
 - ⌨️ **Command line too** – `sangraha status`, `sangraha apps` and `sangraha security` print the
   same boards in a terminal.
 
@@ -94,6 +99,12 @@ changes your files. There is no download yet; build it from source (below).
   </tr>
   <tr>
     <td colspan="2" align="center">Security tab, dark theme</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/bulk-dark.png" alt="Bulk changes: repositories on the left, settings, topics and files on the right"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">Bulk changes, from the Repos tab</td>
   </tr>
 </table>
 
@@ -142,6 +153,8 @@ sangraha security          # alerts by package, secret and code scanning
 sangraha leaks             # check unpushed commits here for leaks
 sangraha hook install --all  # the leak check in every clone
 sangraha gate              # may this clone's next release go out?
+sangraha bulk --repos public --set secret-scanning=on --dependabot --pr  # dry run
+sangraha bulk ... --apply  # the same, for real
 ```
 
 </details>
@@ -191,6 +204,18 @@ Not your files or your history. It runs read-only `git` commands, plus `git fetc
 press **Fetch all**. The one thing it writes into a clone is the leak check hook in
 `.git/hooks`, and only when you press **Add**. Other buttons open GitHub, a file manager or a
 terminal; what happens next is up to you.
+
+On GitHub, only **Bulk changes** writes, and only after you press **Preview** and then
+**Apply**. It reads each repository again first and changes only what still differs.
+</details>
+
+<details>
+<summary>What can Bulk changes not do?</summary>
+
+It does not touch archived repositories or forks, and it never turns off every way to merge.
+A file that is already there and differs is left alone unless you tick *Replace*. Settings and
+topics change straight away; only files go through a pull request. Branch protection rules
+and renaming or archiving many repositories are not part of it yet.
 </details>
 
 <details>
@@ -245,7 +270,7 @@ exist on this computer only.
 <summary>Build, test and screenshots</summary>
 
 - `core/` – the boards: GitHub, clones, cache, app installs (`apps.rs`, `install.rs`), and
-  security (`security.rs`, `leaks.rs`, `hooks.rs`). `cli/` – the `sangraha` command. `app/` – the
+  security (`security.rs`, `leaks.rs`, `hooks.rs`), bulk changes (`bulk.rs`). `cli/` – the `sangraha` command. `app/` – the
   window (Tauri 2, Svelte 5).
 - Checks: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace`, and in `app/`, `npm run check`.

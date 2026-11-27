@@ -366,6 +366,28 @@ fn save_leak_settings(
     Ok(cfg)
 }
 
+/// The dry run of a bulk change. Only reads GitHub.
+#[tauri::command]
+async fn bulk_plan(req: sangraha_core::bulk::Request) -> Result<sangraha_core::bulk::Plan, String> {
+    blocking(move || sangraha_core::bulk_plan(&Config::load(), &req).map_err(|e| e.to_string()))
+        .await
+}
+
+/// Makes a bulk change; emits `bulk-progress` with each repository's name as it starts.
+#[tauri::command]
+async fn bulk_apply(
+    app: tauri::AppHandle,
+    req: sangraha_core::bulk::Request,
+) -> Result<sangraha_core::bulk::Plan, String> {
+    blocking(move || {
+        sangraha_core::bulk_apply(&Config::load(), &req, &|repo| {
+            let _ = app.emit("bulk-progress", repo);
+        })
+        .map_err(|e| e.to_string())
+    })
+    .await
+}
+
 #[tauri::command]
 fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
@@ -393,6 +415,8 @@ pub fn run() {
             security_refresh,
             set_hook,
             save_leak_settings,
+            bulk_plan,
+            bulk_apply,
             version
         ])
         .run(tauri::generate_context!())

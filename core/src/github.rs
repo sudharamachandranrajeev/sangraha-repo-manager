@@ -373,6 +373,75 @@ pub(crate) fn get_json(agent: &ureq::Agent, token: &str, path: &str) -> Result<O
     }
 }
 
+/// GitHub's answer to a REST call: the status and the JSON body (`null` when there is none).
+#[derive(Debug, Clone)]
+pub(crate) struct Reply {
+    pub status: u16,
+    pub body: Value,
+}
+
+impl Reply {
+    pub fn ok(&self) -> bool {
+        (200..300).contains(&self.status)
+    }
+
+    /// GitHub's own explanation of a refusal, or the status.
+    pub fn message(&self) -> String {
+        match self.body["message"].as_str() {
+            Some(m) => format!("{m} (HTTP {})", self.status),
+            None => format!("HTTP {}", self.status),
+        }
+    }
+}
+
+/// A REST call that returns every answer, refusals included, so the caller can tell
+/// "not turned on" (404) from "not allowed" (403) and show GitHub's reason.
+pub(crate) fn call(token: &str, method: &str, path: &str, body: Option<&Value>) -> Result<Reply> {
+    static AGENT: std::sync::OnceLock<ureq::Agent> = std::sync::OnceLock::new();
+    let agent = AGENT.get_or_init(|| {
+        ureq::Agent::config_builder()
+            .timeout_global(Some(Duration::from_secs(60)))
+            .user_agent("sangraha")
+            .http_status_as_error(false)
+            .build()
+            .into()
+    });
+    let url = format!("{API}/{path}");
+    let auth = format!("bearer {token}");
+    macro_rules! with_headers {
+        ($b:expr) => {
+            $b.header("Authorization", &auth)
+                .header("Accept", "application/vnd.github+json")
+                .header("X-GitHub-Api-Version", "2022-11-28")
+        };
+    }
+    let res = match (method, body) {
+        ("GET", None) => with_headers!(agent.get(&url)).call(),
+        ("DELETE", None) => with_headers!(agent.delete(&url)).call(),
+        ("PUT", None) => with_headers!(agent.put(&url)).send_empty(),
+        ("PUT", Some(b)) => with_headers!(agent.put(&url)).send_json(b),
+        ("POST", Some(b)) => with_headers!(agent.post(&url)).send_json(b),
+        ("PATCH", Some(b)) => with_headers!(agent.patch(&url)).send_json(b),
+        _ => {
+            return Err(Error::GitHub(format!(
+                "{method} {path}: not a call Sangraha makes"
+            )));
+        }
+    };
+    let mut res = res.map_err(|e| Error::GitHub(e.to_string()))?;
+    let status = res.status().as_u16();
+    if status == 401 {
+        return Err(Error::Auth(
+            "GitHub refused the login. Run: gh auth login".into(),
+        ));
+    }
+    let text = res.body_mut().read_to_string().unwrap_or_default();
+    Ok(Reply {
+        status,
+        body: serde_json::from_str(&text).unwrap_or(Value::Null),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

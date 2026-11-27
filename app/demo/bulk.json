@@ -1,0 +1,101 @@
+{
+ "changes": 7,
+ "author": "12345+you@users.noreply.github.com",
+ "applied": false,
+ "repos": [
+  {
+   "repo": "you/harbor-notes",
+   "error": null,
+   "done": [],
+   "pullRequest": null,
+   "steps": [
+    {
+     "label": "Secret scanning",
+     "now": "off",
+     "then": "on",
+     "change": true,
+     "note": null
+    },
+    {
+     "label": "Delete branch after merge",
+     "now": "off",
+     "then": "on",
+     "change": true,
+     "note": null
+    },
+    {
+     "label": ".github/dependabot.yml",
+     "now": "missing",
+     "then": "added (made from the clone at /home/you/Work/harbor-notes)",
+     "change": true,
+     "note": null
+    }
+   ]
+  },
+  {
+   "repo": "you/lantern-budget",
+   "error": null,
+   "done": [],
+   "pullRequest": null,
+   "steps": [
+    {
+     "label": "Secret scanning",
+     "now": "on",
+     "then": "on",
+     "change": false,
+     "note": "already so"
+    },
+    {
+     "label": "Delete branch after merge",
+     "now": "off",
+     "then": "on",
+     "change": true,
+     "note": null
+    },
+    {
+     "label": ".github/dependabot.yml",
+     "now": "exists",
+     "then": "replaced",
+     "change": false,
+     "note": "exists and differs; not replaced (tick \"replace\" to change it)"
+    }
+   ]
+  },
+  {
+   "repo": "you/meadow-photos",
+   "error": null,
+   "done": [],
+   "pullRequest": null,
+   "steps": [
+    {
+     "label": "Secret scanning",
+     "now": "off",
+     "then": "on",
+     "change": true,
+     "note": null
+    },
+    {
+     "label": "Delete branch after merge",
+     "now": "off",
+     "then": "on",
+     "change": true,
+     "note": null
+    },
+    {
+     "label": ".github/dependabot.yml",
+     "now": "missing",
+     "then": "added (made from GitHub)",
+     "change": true,
+     "note": null
+    }
+   ]
+  },
+  {
+   "repo": "you/old-site",
+   "error": "archived: GitHub allows no changes",
+   "done": [],
+   "pullRequest": null,
+   "steps": []
+  }
+ ]
+}

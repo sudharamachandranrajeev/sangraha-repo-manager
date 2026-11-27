@@ -1,5 +1,7 @@
 <script lang="ts">
   import Apps from './lib/Apps.svelte'
+  import Bulk from './lib/Bulk.svelte'
+  import type { Row } from './lib/api'
   import Repos from './lib/Repos.svelte'
   import Security from './lib/Security.svelte'
   import Settings from './lib/Settings.svelte'
@@ -18,6 +20,7 @@
   let appBusy = $state<'' | 'refresh'>('')
   let secBusy = $state<'' | 'refresh'>('')
   let showSettings = $state(false)
+  let bulkRows = $state<Row[] | null>(null)
   let repos = $state<Repos>()
   let apps = $state<Apps>()
   let security = $state<Security>()
@@ -31,7 +34,7 @@
 
   function onKey(e: KeyboardEvent) {
     const typing = (e.target as HTMLElement).closest('input, textarea, select')
-    if (typing || showSettings || e.ctrlKey || e.metaKey || e.altKey) return
+    if (typing || showSettings || bulkRows || e.ctrlKey || e.metaKey || e.altKey) return
     if (e.key === '/') {
       e.preventDefault()
       pane?.focusSearch()
@@ -71,6 +74,7 @@
       </div>
     {/if}
     {#if tab === 'repos'}
+      <button class="btn ghost caps" onclick={() => (bulkRows = repos?.allRows() ?? [])} title="One change to many repositories, with a preview first">Bulk changes</button>
       <button class="btn ghost caps" disabled={!!busy} onclick={() => repos?.refresh(true)} title="git fetch in every clone, then read GitHub">
         {busy === 'fetch' ? 'Fetching…' : 'Fetch all'}
       </button>
@@ -96,6 +100,10 @@
     <Security bind:this={security} active={tab === 'security'} bind:busy={secBusy} />
   </div>
 </div>
+
+{#if bulkRows}
+  <Bulk rows={bulkRows} onclose={() => ((bulkRows = null), repos?.load())} />
+{/if}
 
 {#if showSettings}
   <Settings
