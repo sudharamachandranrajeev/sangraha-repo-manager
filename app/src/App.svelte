@@ -6,12 +6,15 @@
   import Security from './lib/Security.svelte'
   import Releases from './lib/Releases.svelte'
   import Settings from './lib/Settings.svelte'
+  import Tidy from './lib/Tidy.svelte'
+  import { onMount } from 'svelte'
+  import { onChecked } from './lib/api'
 
-  type Tab = 'repos' | 'apps' | 'security' | 'releases'
+  type Tab = 'repos' | 'apps' | 'security' | 'releases' | 'tidy'
   type View = 'table' | 'grid'
 
   const saved = localStorage.getItem('tab')
-  let tab = $state<Tab>(saved === 'apps' || saved === 'security' || saved === 'releases' ? saved : 'repos')
+  let tab = $state<Tab>(saved === 'apps' || saved === 'security' || saved === 'releases' || saved === 'tidy' ? saved : 'repos')
   // Repos read best as a table, apps as cards; each tab keeps its own choice.
   let views = $state<Record<'repos' | 'apps', View>>({
     repos: localStorage.getItem('view') === 'grid' ? 'grid' : 'table',
@@ -21,15 +24,17 @@
   let appBusy = $state<'' | 'refresh'>('')
   let secBusy = $state<'' | 'refresh'>('')
   let relBusy = $state<'' | 'refresh'>('')
+  let tidyBusy = $state<'' | 'refresh'>('')
   let showSettings = $state(false)
   let bulkRows = $state<Row[] | null>(null)
   let repos = $state<Repos>()
   let apps = $state<Apps>()
   let security = $state<Security>()
   let releases = $state<Releases>()
+  let tidy = $state<Tidy>()
 
-  const busy = $derived(tab === 'repos' ? repoBusy : tab === 'apps' ? appBusy : tab === 'security' ? secBusy : relBusy)
-  const pane = $derived(tab === 'repos' ? repos : tab === 'apps' ? apps : tab === 'security' ? security : releases)
+  const busy = $derived(tab === 'repos' ? repoBusy : tab === 'apps' ? appBusy : tab === 'security' ? secBusy : tab === 'releases' ? relBusy : tidyBusy)
+  const pane = $derived(tab === 'repos' ? repos : tab === 'apps' ? apps : tab === 'security' ? security : tab === 'releases' ? releases : tidy)
 
   function refresh() {
     pane?.refresh()
@@ -43,10 +48,24 @@
       pane?.focusSearch()
     } else if (e.key === 'r') {
       refresh()
-    } else if (['1', '2', '3', '4'].includes(e.key)) {
-      tab = (['repos', 'apps', 'security', 'releases'] as const)[Number(e.key) - 1]
+    } else if (['1', '2', '3', '4', '5'].includes(e.key)) {
+      tab = (['repos', 'apps', 'security', 'releases', 'tidy'] as const)[Number(e.key) - 1]
     }
   }
+
+  function reloadAll() {
+    repos?.load()
+    apps?.load()
+    security?.load()
+    releases?.load()
+    tidy?.load()
+  }
+
+  // The tray read GitHub in the background.
+  onMount(() => {
+    const off = onChecked(reloadAll)
+    return () => off.then((f) => f())
+  })
 
   $effect(() => {
     localStorage.setItem('tab', tab)
@@ -68,6 +87,7 @@
       <button class="tab" class:on={tab === 'apps'} aria-current={tab === 'apps' ? 'page' : undefined} onclick={() => (tab = 'apps')}>Apps</button>
       <button class="tab" class:on={tab === 'security'} aria-current={tab === 'security' ? 'page' : undefined} onclick={() => (tab = 'security')}>Security</button>
       <button class="tab" class:on={tab === 'releases'} aria-current={tab === 'releases' ? 'page' : undefined} onclick={() => (tab = 'releases')}>Releases</button>
+      <button class="tab" class:on={tab === 'tidy'} aria-current={tab === 'tidy' ? 'page' : undefined} onclick={() => (tab = 'tidy')}>Housekeeping</button>
     </nav>
     <div class="spacer"></div>
     {#if tab === 'repos' || tab === 'apps'}
@@ -106,6 +126,9 @@
   <div class="pane" hidden={tab !== 'releases'}>
     <Releases bind:this={releases} active={tab === 'releases'} bind:busy={relBusy} />
   </div>
+  <div class="pane" hidden={tab !== 'tidy'}>
+    <Tidy bind:this={tidy} active={tab === 'tidy'} bind:busy={tidyBusy} />
+  </div>
 </div>
 
 {#if bulkRows}
@@ -115,12 +138,7 @@
 {#if showSettings}
   <Settings
     onclose={() => (showSettings = false)}
-    onchange={() => {
-      repos?.load()
-      apps?.load()
-      security?.load()
-      releases?.load()
-    }}
+    onchange={reloadAll}
   />
 {/if}
 

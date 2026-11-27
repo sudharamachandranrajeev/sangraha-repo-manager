@@ -25,6 +25,10 @@ Usage:
   sangraha releases [--json] [--offline]
   sangraha changelog [PATH]
   sangraha subtree pull PATH DIR
+  sangraha tidy [--json] [--offline]
+  sangraha tidy delete-merged OWNER/NAME [BRANCH...] [--apply]
+  sangraha digest [--refresh] [--notify] [--hook] [--mark] [--json]
+  sangraha digest --schedule on|off [--at HH:MM]
 
 status    What needs attention. Reads GitHub through your gh login (gh auth login).
   --all       every repository, not only those that need attention
@@ -74,6 +78,15 @@ releases  Each clone since its last tag: commits, whether the version files are 
 changelog A draft changelog from the commits since the last tag (default: this folder).
 subtree   pull PATH DIR: git subtree pull for the copy in DIR of the clone at PATH, from
           the source Sangraha found for it.
+tidy      Merged and stale branches, repositories without a README, licence or CI, old
+          workflow runs, and large files in the clones. delete-merged deletes branches
+          merged through a pull request (all of the repository's, or those named); it
+          shows them unless --apply is given.
+digest    One summary of every tab, from what Sangraha last read (--refresh reads GitHub
+          first). --notify shows it as a desktop notification; --hook sends it as JSON to
+          the digest command in settings; --mark makes its items count as seen, so the
+          next digest calls only later ones new. --schedule on runs
+          `digest --refresh --notify --hook --mark` daily (--at, default from settings).
 ";
 
 fn main() -> ExitCode {
@@ -107,6 +120,11 @@ fn main() -> ExitCode {
         Some("hook") => hook(args.get(1).map(String::as_str), &args[2..], flag("--all")),
         Some("gate") => gate(args.get(1).map(PathBuf::from)),
         Some("bulk") => bulk(&args[1..]),
+        Some("tidy") if args.get(1).map(String::as_str) == Some("delete-merged") => {
+            delete_merged(&args[2..], flag("--apply"))
+        }
+        Some("tidy") => tidy(flag("--json"), flag("--offline")),
+        Some("digest") => digest(&args[1..]),
         Some("releases") => releases(flag("--json"), flag("--offline")),
         Some("changelog") => changelog(args.get(1).map(PathBuf::from)),
         Some("subtree") => match (args.get(1).map(String::as_str), args.get(2), args.get(3)) {
@@ -947,4 +965,167 @@ fn subtree_pull(path: &str, dir: &str) -> Result<ExitCode, String> {
         .map_err(|e| e.to_string())?;
     out!("{text}");
     Ok(ExitCode::SUCCESS)
+}
+
+fn tidy(json: bool, offline: bool) -> Result<ExitCode, String> {
+    let cfg = Config::load();
+    let b = if offline {
+        sangraha_core::tidy_load(&cfg)
+    } else {
+        sangraha_core::tidy_refresh(&cfg)
+    }
+    .map_err(|e| e.to_string())?;
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&b).map_err(|e| e.to_string())?
+        );
+        return Ok(ExitCode::SUCCESS);
+    }
+    let c = &b.counts;
+    out!(
+        "{} merged branches · {} stale branches · {} without README · {} public without licence · {} without CI · {} old workflow runs · {} large files",
+        c.merged,
+        c.stale,
+        c.no_readme,
+        c.no_license,
+        c.no_ci,
+        c.old_runs,
+        c.large_files
+    );
+    out!("");
+    for r in &b.repos {
+        let mut bits = Vec::new();
+        if !r.merged.is_empty() {
+            bits.push(format!(
+                "merged: {}",
+                r.merged
+                    .iter()
+                    .map(|b| b.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
+        if !r.stale.is_empty() {
+            bits.push(format!(
+                "stale: {}",
+                r.stale
+                    .iter()
+                    .map(|b| b.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
+        if !r.missing.is_empty() {
+            bits.push(format!("no {}", r.missing.join(", no ")));
+        }
+        if let Some(n) = r.old_runs.filter(|n| *n > 0) {
+            bits.push(format!("{n} old runs"));
+        }
+        for f in &r.large_files {
+            bits.push(format!("{} ({} MB)", f.path, f.size / 1_000_000));
+        }
+        out!("{:32} {}", short(&r.repo), bits.join(" · "));
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn delete_merged(args: &[String], apply: bool) -> Result<ExitCode, String> {
+    let rest: Vec<&String> = args.iter().filter(|a| !a.starts_with("--")).collect();
+    let Some(repo) = rest.first() else {
+        return Err("usage: sangraha tidy delete-merged OWNER/NAME [BRANCH...] [--apply]".into());
+    };
+    let board = sangraha_core::tidy_load(&Config::load()).map_err(|e| e.to_string())?;
+    let merged: Vec<String> = board
+        .repos
+        .iter()
+        .find(|r| r.repo.eq_ignore_ascii_case(repo))
+        .map(|r| r.merged.iter().map(|b| b.name.clone()).collect())
+        .unwrap_or_default();
+    let names: Vec<String> = if rest.len() > 1 {
+        rest[1..]
+            .iter()
+            .map(|s| s.to_string())
+            .filter(|n| merged.contains(n))
+            .collect()
+    } else {
+        merged
+    };
+    if names.is_empty() {
+        out!("No merged branches to delete in {repo} (run sangraha tidy to read them again).");
+        return Ok(ExitCode::SUCCESS);
+    }
+    if !apply {
+        out!("Would delete in {repo}: {}", names.join(", "));
+        out!(
+            "Each was merged through a pull request and has nothing newer. Add --apply to delete them."
+        );
+        return Ok(ExitCode::SUCCESS);
+    }
+    for line in sangraha_core::delete_merged(repo, &names).map_err(|e| e.to_string())? {
+        out!("{line}");
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn digest(args: &[String]) -> Result<ExitCode, String> {
+    let has = |f: &str| args.iter().any(|a| a == f);
+    let value = |f: &str| {
+        args.iter()
+            .position(|a| a == f)
+            .and_then(|i| args.get(i + 1))
+            .cloned()
+    };
+    let cfg = Config::load();
+    if let Some(on) = value("--schedule") {
+        let on = match on.as_str() {
+            "on" => true,
+            "off" => false,
+            _ => return Err("--schedule on or --schedule off".into()),
+        };
+        let cli = sangraha_core::hooks::cli_path().ok_or("cannot find the sangraha program")?;
+        let time = value("--at").unwrap_or_else(|| cfg.digest_time.clone());
+        out!(
+            "{}",
+            sangraha_core::digest::schedule(on, &time, &cli).map_err(|e| e.to_string())?
+        );
+        return Ok(ExitCode::SUCCESS);
+    }
+    let d =
+        sangraha_core::digest(&cfg, has("--refresh"), has("--mark")).map_err(|e| e.to_string())?;
+    if has("--json") {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&d).map_err(|e| e.to_string())?
+        );
+    } else {
+        out!("{}", sangraha_core::digest::text(&d).trim_end());
+    }
+    let mut failed = false;
+    if has("--notify")
+        && let Err(e) = sangraha_core::digest::notify(&d)
+    {
+        eprintln!("{e}");
+        failed = true;
+    }
+    if has("--hook") {
+        match cfg
+            .digest_command
+            .as_deref()
+            .filter(|c| !c.trim().is_empty())
+        {
+            Some(c) => {
+                if let Err(e) = sangraha_core::digest::run_hook(c, &d) {
+                    eprintln!("{e}");
+                    failed = true;
+                }
+            }
+            None => eprintln!("No digest command in settings; --hook did nothing."),
+        }
+    }
+    Ok(if failed {
+        ExitCode::from(1)
+    } else {
+        ExitCode::SUCCESS
+    })
 }

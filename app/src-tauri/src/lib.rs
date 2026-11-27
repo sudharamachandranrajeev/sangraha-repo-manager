@@ -9,6 +9,8 @@ use sangraha_core::{AppsBoard, Board, Config, SecurityBoard};
 use serde::Serialize;
 use tauri::Emitter;
 
+mod tray;
+
 /// Runs blocking work (git, GitHub, SQLite) off the window's thread.
 async fn blocking<T: Send + 'static>(
     f: impl FnOnce() -> Result<T, String> + Send + 'static,
@@ -436,6 +438,79 @@ async fn bulk_apply(
 }
 
 #[tauri::command]
+async fn tidy_board() -> Result<sangraha_core::housekeeping::TidyBoard, String> {
+    blocking(|| sangraha_core::tidy_load(&Config::load()).map_err(|e| e.to_string())).await
+}
+
+#[tauri::command]
+async fn tidy_refresh() -> Result<sangraha_core::housekeeping::TidyBoard, String> {
+    blocking(|| sangraha_core::tidy_refresh(&Config::load()).map_err(|e| e.to_string())).await
+}
+
+/// Deletes merged branches (only those the last housekeeping read listed, and only while
+/// unchanged on GitHub).
+#[tauri::command]
+async fn delete_merged(repo: String, names: Vec<String>) -> Result<Vec<String>, String> {
+    blocking(move || sangraha_core::delete_merged(&repo, &names).map_err(|e| e.to_string())).await
+}
+
+/// The digest as it would be now, from what Sangraha last read. Marks nothing as seen.
+#[tauri::command]
+async fn digest_preview() -> Result<sangraha_core::digest::Digest, String> {
+    blocking(|| sangraha_core::digest(&Config::load(), false, false).map_err(|e| e.to_string()))
+        .await
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DigestState {
+    scheduled: bool,
+    cli: Option<PathBuf>,
+}
+
+#[tauri::command]
+fn digest_state() -> DigestState {
+    DigestState {
+        scheduled: sangraha_core::digest::scheduled(),
+        cli: sangraha_core::hooks::cli_path(),
+    }
+}
+
+/// Saves the digest settings, and sets up or takes out the daily timer.
+#[tauri::command]
+async fn save_digest_settings(
+    app: tauri::AppHandle,
+    command: String,
+    time: String,
+    daily: bool,
+    run_in_tray: bool,
+) -> Result<String, String> {
+    blocking(move || {
+        let mut cfg = Config::load();
+        let time = time.trim().to_owned();
+        if !sangraha_core::digest::valid_time(&time) {
+            return Err(format!("{time}: write the time as HH:MM, e.g. 09:00"));
+        }
+        let command = command.trim();
+        cfg.digest_command = (!command.is_empty()).then(|| command.to_owned());
+        cfg.digest_time = time.clone();
+        cfg.run_in_tray = run_in_tray;
+        cfg.save().map_err(|e| e.to_string())?;
+        let note = if daily || sangraha_core::digest::scheduled() {
+            let cli = sangraha_core::hooks::cli_path().ok_or(
+                "The sangraha command line program was not found, and the daily digest needs it. Install it first (see the README)",
+            )?;
+            sangraha_core::digest::schedule(daily, &time, &cli).map_err(|e| e.to_string())?
+        } else {
+            "Saved".to_owned()
+        };
+        tray::set(&app, run_in_tray);
+        Ok(note)
+    })
+    .await
+}
+
+#[tauri::command]
 fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
@@ -469,8 +544,28 @@ pub fn run() {
             save_leak_settings,
             bulk_plan,
             bulk_apply,
+            tidy_board,
+            tidy_refresh,
+            delete_merged,
+            digest_preview,
+            digest_state,
+            save_digest_settings,
             version
         ])
+        .setup(|app| {
+            tray::set(app.handle(), Config::load().run_in_tray);
+            tray::watch(app.handle().clone());
+            Ok(())
+        })
+        .on_window_event(|window, event| {
+            // With the tray on, closing the window only hides it.
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event
+                && Config::load().run_in_tray
+            {
+                api.prevent_close();
+                let _ = window.hide();
+            }
+        })
         .run(tauri::generate_context!())
         .expect("Sangraha could not start");
 }

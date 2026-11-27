@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { api, type Config } from './api'
+  import { api, type Config, type Digest } from './api'
 
   let { onclose, onchange }: { onclose: () => void; onchange: () => void } = $props()
 
@@ -19,6 +19,14 @@
   let requireSigned = $state(false)
   let leakError = $state('')
   let leakSaved = $state(false)
+  let digestCommand = $state('')
+  let digestTime = $state('09:00')
+  let daily = $state(false)
+  let runInTray = $state(false)
+  let cliFound = $state(true)
+  let digestNote = $state('')
+  let digestError = $state('')
+  let preview = $state<Digest | null>(null)
   let version = $state('')
   let dialog: HTMLDivElement
 
@@ -29,6 +37,10 @@
     termsFile = cfg.termsFile ?? ''
     emailsText = cfg.allowedEmails.join('\n')
     requireSigned = cfg.requireSigned
+    digestCommand = cfg.digestCommand ?? ''
+    digestTime = cfg.digestTime
+    runInTray = cfg.runInTray
+    api.digestState().then((d) => ((daily = d.scheduled), (cliFound = !!d.cli)))
     prereleases = cfg.prereleases
     delayDays = cfg.delayDays
     extraText = cfg.extraApps.join('\n')
@@ -75,6 +87,16 @@
       leakSaved = true
     } catch (e) {
       leakError = String(e)
+    }
+  }
+
+  async function saveDigest() {
+    digestError = ''
+    digestNote = ''
+    try {
+      digestNote = await api.saveDigestSettings({ command: digestCommand, time: digestTime, daily, runInTray })
+    } catch (e) {
+      digestError = String(e)
     }
   }
 
@@ -169,6 +191,31 @@
       {#if leakError}<p class="error" role="alert">{leakError}</p>{/if}
       <button class="btn" onclick={saveLeaks}>Save leak check settings</button>
       {#if leakSaved}<span class="hint" role="status"> Saved.</span>{/if}
+    </section>
+
+    <section>
+      <h3 class="caps label">Daily digest and tray</h3>
+      <p class="hint">
+        One summary of every tab: what needs attention, app updates, serious alerts, releases. It reads GitHub once a day (about 1.5 MB) and shows
+        a desktop notification.
+      </p>
+      <label class="check"
+        ><input type="checkbox" bind:checked={daily} disabled={!cliFound} /> Every day at
+        <input class="time" type="text" bind:value={digestTime} aria-label="Digest time, HH:MM" spellcheck="false" /></label
+      >
+      {#if !cliFound}<p class="hint">Needs the <span class="mono">sangraha</span> command line program (README, "Just the command line").</p>{/if}
+      <label for="digest-cmd" class="small">Also send it to a command (gets the digest as JSON on its input), e.g. a reminder or mail script</label>
+      <input id="digest-cmd" type="text" bind:value={digestCommand} placeholder="Optional" spellcheck="false" />
+      <label class="check"><input type="checkbox" bind:checked={runInTray} /> Keep running in the tray when the window closes, and check every 6 hours</label>
+      {#if digestError}<p class="error" role="alert">{digestError}</p>{/if}
+      <div class="row">
+        <button class="btn" onclick={saveDigest}>Save digest settings</button>
+        <button class="btn ghost" onclick={async () => (preview = await api.digestPreview())}>Show today's digest</button>
+      </div>
+      {#if digestNote}<span class="hint" role="status">{digestNote}.</span>{/if}
+      {#if preview}
+        <pre class="digest mono small">{preview.summary}{'\n'}{preview.items.map((i) => `\n${i.new ? 'new ' : '    '}${i.area}: ${i.text}`).join('')}</pre>
+      {/if}
     </section>
 
     <section>
@@ -288,5 +335,21 @@
   footer {
     margin-top: auto;
     color: var(--faint);
+  }
+  .time {
+    width: 64px;
+    display: inline-block;
+  }
+  .row {
+    display: flex;
+    gap: 8px;
+  }
+  .digest {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    white-space: pre-wrap;
+    max-height: 240px;
+    overflow: auto;
   }
 </style>

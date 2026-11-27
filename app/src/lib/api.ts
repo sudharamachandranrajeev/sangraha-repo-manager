@@ -8,12 +8,33 @@ const inTauri = '__TAURI_INTERNALS__' in window
 
 async function demo<T>(cmd: string): Promise<T> {
   if (cmd === 'board' || cmd === 'refresh' || cmd.endsWith('_board') || cmd.endsWith('_refresh')) {
-    const file = cmd.startsWith('apps') ? 'apps' : cmd.startsWith('security') ? 'security' : cmd.startsWith('releases') ? 'releases' : 'board'
+    const file = cmd.startsWith('apps')
+      ? 'apps'
+      : cmd.startsWith('security')
+        ? 'security'
+        : cmd.startsWith('releases')
+          ? 'releases'
+          : cmd.startsWith('tidy')
+            ? 'tidy'
+            : 'board'
     const b = (await (await fetch(`/demo/${file}.json`)).json()) as { checkedAt: number | null }
     b.checkedAt = Math.floor(Date.now() / 1000) - 180
     return b as T
   }
   if (cmd === 'set_hook' || cmd === 'subtree_pull') return 'Demo: nothing was changed' as T
+  if (cmd === 'delete_merged') return ['Demo: nothing was changed'] as T
+  if (cmd === 'save_digest_settings') return 'Demo: nothing was changed' as T
+  if (cmd === 'digest_state') return { scheduled: false, cli: '/home/you/.cargo/bin/sangraha' } as T
+  if (cmd === 'digest_preview')
+    return {
+      at: Math.floor(Date.now() / 1000),
+      summary: '6 repos need attention · 2 app updates · 1 ready to tag · 4 merged branches to delete',
+      items: [
+        { id: 'a', area: 'Repos', text: 'harbor-notes: Checks failing on main', new: true },
+        { id: 'b', area: 'Apps', text: 'Lantern Budget: 0.4.0 → v0.4.1', new: false },
+      ],
+      new: 1,
+    } as T
   if (cmd === 'changelog')
     return '## 0.4.0\n\n### Added\n\n- Export to CSV (a1b2c3d)\n- Dark theme follows the system (b2c3d4e)\n\n### Fixed\n\n- Crash when the list is empty (#41) (c3d4e5f)\n' as T
   if (cmd === 'release_details')
@@ -45,6 +66,9 @@ async function demo<T>(cmd: string): Promise<T> {
       termsFile: null,
       allowedEmails: [],
       requireSigned: false,
+      digestCommand: null,
+      digestTime: '09:00',
+      runInTray: false,
     } as T
   if (cmd === 'version') return 'demo' as T
   return undefined as T
@@ -179,6 +203,41 @@ export interface Config {
   termsFile: string | null
   allowedEmails: string[]
   requireSigned: boolean
+  digestCommand: string | null
+  digestTime: string
+  runInTray: boolean
+}
+
+export interface Branch {
+  name: string
+  oid: string
+  lastCommit: string | null
+  pullRequest: number | null
+}
+
+export interface TidyRepo {
+  repo: string
+  private: boolean
+  branches: number
+  merged: Branch[]
+  stale: Branch[]
+  missing: string[]
+  oldRuns: number | null
+  largeFiles: { path: string; size: number }[]
+}
+
+export interface TidyBoard {
+  repos: TidyRepo[]
+  counts: { merged: number; stale: number; noReadme: number; noLicense: number; noCi: number; oldRuns: number; largeFiles: number }
+  checkedAt: number | null
+  warnings: string[]
+}
+
+export interface Digest {
+  at: number
+  summary: string
+  items: { id: string; area: string; text: string; new: boolean }[]
+  new: number
 }
 
 export type Setting =
@@ -428,8 +487,21 @@ export const api = {
   releaseDetails: (repo: string, tag: string, sha: string) => invoke<ReleaseDetails>('release_details', { repo, tag, sha }),
   changelog: (path: string) => invoke<string>('changelog', { path }),
   subtreePull: (path: string, dir: string) => invoke<string>('subtree_pull', { path, dir }),
+  tidyBoard: () => invoke<TidyBoard>('tidy_board'),
+  tidyRefresh: () => invoke<TidyBoard>('tidy_refresh'),
+  deleteMerged: (repo: string, names: string[]) => invoke<string[]>('delete_merged', { repo, names }),
+  digestPreview: () => invoke<Digest>('digest_preview'),
+  digestState: () => invoke<{ scheduled: boolean; cli: string | null }>('digest_state'),
+  saveDigestSettings: (s: { command: string; time: string; daily: boolean; runInTray: boolean }) => invoke<string>('save_digest_settings', s),
   bulkPlan: (req: BulkRequest) => invoke<BulkPlan>('bulk_plan', { req }),
   bulkApply: (req: BulkRequest) => invoke<BulkPlan>('bulk_apply', { req }),
+}
+
+/** The tray read GitHub in the background: the tabs should load again. */
+export async function onChecked(f: () => void): Promise<() => void> {
+  if (!inTauri) return () => {}
+  const { listen } = await import('@tauri-apps/api/event')
+  return listen('checked', () => f())
 }
 
 /** The repository a bulk change is working on. Does nothing outside the Sangraha window. */

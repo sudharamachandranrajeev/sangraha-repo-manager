@@ -9,8 +9,10 @@ pub mod board;
 pub mod bulk;
 pub mod cache;
 pub mod config;
+pub mod digest;
 pub mod github;
 pub mod hooks;
+pub mod housekeeping;
 pub mod install;
 pub mod leaks;
 pub mod local;
@@ -312,6 +314,113 @@ pub fn subtree_pull(cfg: &Config, path: &std::path::Path, dir: &str) -> Result<S
     subtrees::pull(&sub)
 }
 
+/// The snapshot of the owner's repositories, read first if there is none.
+fn snapshot_or_fetch(cache: &cache::Cache, token: &str) -> Result<github::Snapshot> {
+    match cache.snapshot()? {
+        Some(s) => Ok(s),
+        None => {
+            let s = github::fetch(token)?;
+            cache.set_snapshot(&s)?;
+            Ok(s)
+        }
+    }
+}
+
+/// The Housekeeping tab from GitHub's last answer and the clones. No network.
+pub fn tidy_load(cfg: &Config) -> Result<housekeeping::TidyBoard> {
+    let cache = cache::Cache::open_default()?;
+    Ok(housekeeping::build(
+        cache.tidy()?.as_ref(),
+        &local::scan(&cfg.roots),
+    ))
+}
+
+/// Reads branches, top-level files and old workflow runs from GitHub again.
+pub fn tidy_refresh(cfg: &Config) -> Result<housekeeping::TidyBoard> {
+    let token = github::token()?;
+    let cache = cache::Cache::open_default()?;
+    let snap = snapshot_or_fetch(&cache, &token)?;
+    let tidy = housekeeping::fetch(&token, &snap.repos)?;
+    cache.set_tidy(&tidy)?;
+    Ok(housekeeping::build(Some(&tidy), &local::scan(&cfg.roots)))
+}
+
+/// Deletes merged branches of one of the owner's repositories (those the last housekeeping
+/// read listed as merged, and only while unchanged).
+pub fn delete_merged(repo: &str, names: &[String]) -> Result<Vec<String>> {
+    let cache = cache::Cache::open_default()?;
+    let known = cache
+        .tidy()?
+        .and_then(|t| {
+            t.repos
+                .into_iter()
+                .find(|r| r.repo.eq_ignore_ascii_case(repo))
+        })
+        .ok_or_else(|| Error::GitHub(format!("{repo}: read housekeeping first")))?;
+    let branches: Vec<_> = known
+        .merged
+        .into_iter()
+        .filter(|b| names.contains(&b.name))
+        .collect();
+    let out = housekeeping::delete_merged(&github::token()?, repo, &branches)?;
+    // Forget the deleted ones, so the board does not offer them again.
+    if let Some(mut t) = cache.tidy()? {
+        if let Some(r) = t
+            .repos
+            .iter_mut()
+            .find(|r| r.repo.eq_ignore_ascii_case(repo))
+        {
+            r.merged
+                .retain(|b| !out.iter().any(|l| l == &format!("{}: deleted", b.name)));
+        }
+        cache.set_tidy(&t)?;
+    }
+    Ok(out)
+}
+
+/// The digest from what Sangraha last read, or (with `refresh`) after reading GitHub again:
+/// repositories, apps, security and subtrees every time, housekeeping once a week. With `mark`,
+/// its items count as seen, and the next digest calls only later ones new.
+pub fn digest(cfg: &Config, refresh_first: bool, mark: bool) -> Result<digest::Digest> {
+    let cache = cache::Cache::open_default()?;
+    let (board, apps, security, releases) = if refresh_first {
+        (
+            refresh(cfg, false)?,
+            apps_refresh(cfg)?,
+            security_refresh(cfg)?,
+            releases_refresh(cfg)?,
+        )
+    } else {
+        (
+            load(cfg)?,
+            apps_load(cfg)?,
+            security_load(cfg)?,
+            releases_load(cfg)?,
+        )
+    };
+    let week_old = cache
+        .tidy()?
+        .is_none_or(|t| now() - t.checked_at > 7 * 86_400);
+    let tidy = if refresh_first && week_old {
+        tidy_refresh(cfg)?
+    } else {
+        tidy_load(cfg)?
+    };
+    let seen = cache.digest_seen()?;
+    let d = digest::build(
+        Some(&board),
+        Some(&apps),
+        Some(&security),
+        Some(&releases),
+        Some(&tidy),
+        &seen,
+    );
+    if mark {
+        cache.set_digest_seen(&d.items.iter().map(|i| i.id.clone()).collect())?;
+    }
+    Ok(d)
+}
+
 /// What the `pre-push` hook decides: the leak check over the commits being pushed, and for a
 /// tag, the release gate.
 #[derive(Debug, Clone, Default, serde::Serialize)]
@@ -411,6 +520,21 @@ pub fn parse_time(iso: &str) -> Option<i64> {
     Some(days * 86_400 + hh * 3600 + mm * 60 + ss)
 }
 
+/// "2026-11-27" for Unix seconds (UTC).
+pub fn iso_date(secs: i64) -> String {
+    // Howard Hinnant's civil_from_days.
+    let z = secs.div_euclid(86_400) + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + i64::from(m <= 2);
+    format!("{y:04}-{m:02}-{d:02}")
+}
+
 /// "linux x64", "windows arm64" … for the footer and, later, for picking release assets.
 pub fn platform() -> String {
     let arch = match std::env::consts::ARCH {
@@ -425,6 +549,15 @@ pub fn platform() -> String {
 mod tests {
     #[test]
     fn github_times() {
+        assert_eq!(
+            super::iso_date(super::parse_time("2026-11-27T14:05:09Z").unwrap()),
+            "2026-11-27"
+        );
+        assert_eq!(super::iso_date(0), "1970-01-01");
+        assert_eq!(
+            super::iso_date(super::parse_time("2024-02-29T23:59:59Z").unwrap()),
+            "2024-02-29"
+        );
         assert_eq!(super::parse_time("1970-01-01T00:00:00Z"), Some(0));
         assert_eq!(
             super::parse_time("2026-11-27T14:05:09Z"),

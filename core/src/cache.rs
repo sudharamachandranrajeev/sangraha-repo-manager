@@ -79,6 +79,23 @@ impl Cache {
         self.put("drift", s)
     }
 
+    pub fn tidy(&self) -> Result<Option<crate::housekeeping::TidySnapshot>> {
+        self.get("tidy")
+    }
+
+    pub fn set_tidy(&self, s: &crate::housekeeping::TidySnapshot) -> Result<()> {
+        self.put("tidy", s)
+    }
+
+    /// The items the last marked digest held, so the next one can say what is new.
+    pub fn digest_seen(&self) -> Result<std::collections::HashSet<String>> {
+        Ok(self.get("digest_seen")?.unwrap_or_default())
+    }
+
+    pub fn set_digest_seen(&self, ids: &std::collections::HashSet<String>) -> Result<()> {
+        self.put("digest_seen", ids)
+    }
+
     /// Old `owner/name` (lower case) → current `owner/name`; an empty value means "checked, gone".
     pub fn renames(&self) -> Result<HashMap<String, String>> {
         Ok(self.get("renames")?.unwrap_or_default())

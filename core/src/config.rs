@@ -43,6 +43,20 @@ pub struct Config {
     /// Leak check: block commits that are not signed.
     #[serde(default)]
     pub require_signed: bool,
+    /// Digest: a command that gets each digest as JSON on its standard input (a reminder
+    /// system, an agent, a mail script).
+    #[serde(default)]
+    pub digest_command: Option<String>,
+    /// Digest: when the daily digest runs, "HH:MM".
+    #[serde(default = "nine")]
+    pub digest_time: String,
+    /// Keep running in the system tray when the window closes, checking every few hours.
+    #[serde(default)]
+    pub run_in_tray: bool,
+}
+
+fn nine() -> String {
+    "09:00".into()
 }
 
 fn yes() -> bool {
@@ -70,6 +84,9 @@ impl Default for Config {
             terms_file: None,
             allowed_emails: Vec::new(),
             require_signed: false,
+            digest_command: None,
+            digest_time: nine(),
+            run_in_tray: false,
         }
     }
 }

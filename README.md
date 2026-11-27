@@ -87,6 +87,15 @@ changes your files. There is no download yet; build it from source (below).
 - 🌿 **Copies inside other repositories** – folders added with `git subtree` show how many
   commits their source has that the copy lacks, and any commits made to the copy here.
   **Pull** brings the copy up to date.
+- 🧹 **Housekeeping** – branches merged through a pull request (with **Delete merged**, which
+  keeps any branch pushed to since), branches quiet for 90 days, public repositories without
+  a licence, repositories without a README or CI, old workflow runs, and files of 20 MB or more
+  in your clones.
+- 📰 **Daily digest** – one summary of every tab, marking what is new since yesterday, as a
+  desktop notification at a time you choose. It can also go to a command of yours as JSON,
+  for a reminder app, an agent or a mail script.
+- 📥 **Tray** – if you want, Sangraha stays in the system tray when its window closes, reads
+  GitHub every 6 hours and tells you when something new needs you.
 - ⌨️ **Command line too** – `sangraha status`, `sangraha apps` and `sangraha security` print the
   same boards in a terminal.
 
@@ -118,6 +127,12 @@ changes your files. There is no download yet; build it from source (below).
   </tr>
   <tr>
     <td colspan="2" align="center">Releases tab</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/housekeeping-dark.png" alt="The Housekeeping tab: merged and stale branches, missing README, licence or CI, old workflow runs and large files per repository"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">Housekeeping tab</td>
   </tr>
 </table>
 
@@ -171,6 +186,11 @@ sangraha bulk ... --apply  # the same, for real
 sangraha releases          # what waits for a release; subtree copies behind
 sangraha changelog         # a draft changelog since the last tag
 sangraha subtree pull ~/Work/suite apps/notes
+sangraha tidy              # merged and stale branches, missing files, large files
+sangraha tidy delete-merged you/app          # dry run
+sangraha tidy delete-merged you/app --apply  # the same, for real
+sangraha digest            # one summary of every tab
+sangraha digest --schedule on --at 08:30     # every day, as a notification
 ```
 
 </details>
@@ -222,8 +242,13 @@ Only when you press a button for it. Otherwise it runs read-only `git` commands,
 not pushed). Other buttons open GitHub, a file manager or a terminal; what happens next is up
 to you.
 
-On GitHub, only **Bulk changes** writes, and only after you press **Preview** and then
-**Apply**. It reads each repository again first and changes only what still differs.
+On GitHub, only **Bulk changes** and **Delete merged** write. Bulk changes waits for
+**Preview** and then **Apply**, reads each repository again first and changes only what still
+differs. Delete merged asks first, and keeps any branch with commits newer than the merged
+pull request.
+
+Turning on the daily digest adds a systemd user timer (`sangraha-digest.timer`) on Linux or a
+Task Scheduler task on Windows. Turning it off removes them.
 </details>
 
 <details>
@@ -294,6 +319,17 @@ the repository with the folder's name. Renamed repositories are followed. **Pull
 </details>
 
 <details>
+<summary>How do I send the digest somewhere else?</summary>
+
+In Settings, under **Daily digest and tray**, enter a command. Each digest goes to its input
+as JSON: a `summary` line, and `items`, each with an `area` (Repos, Apps, Security,
+Releases), a `text` and `new`. For example, `jq -r .summary | mail -s Sangraha you@example.com`
+mails the summary. The tray's check every 6 hours sends notifications only, not the command.
+
+On Linux the tray icon shows no tooltip; the menu has **Check now**.
+</details>
+
+<details>
 <summary>What does "Local only" mean?</summary>
 
 The folder is a git repository with no remote, or its remote is not on GitHub. Its commits
@@ -306,12 +342,12 @@ exist on this computer only.
 <summary>Build, test and screenshots</summary>
 
 - `core/` – the boards: GitHub, clones, cache, app installs (`apps.rs`, `install.rs`), and
-  security (`security.rs`, `leaks.rs`, `hooks.rs`), bulk changes (`bulk.rs`), releases and subtrees (`releases.rs`, `subtrees.rs`). `cli/` – the `sangraha` command. `app/` – the
+  security (`security.rs`, `leaks.rs`, `hooks.rs`), bulk changes (`bulk.rs`), releases and subtrees (`releases.rs`, `subtrees.rs`), housekeeping and the digest (`housekeeping.rs`, `digest.rs`). The tray is `app/src-tauri/src/tray.rs`. `cli/` – the `sangraha` command. `app/` – the
   window (Tauri 2, Svelte 5).
 - Checks: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace`, and in `app/`, `npm run check`.
-- In a plain browser, `npm run dev` reads `app/demo/board.json`, `apps.json` and
-  `security.json` instead of the real boards. They hold made-up data for screenshots.
+- In a plain browser, `npm run dev` reads the files in `app/demo/` instead of the real
+  boards. They hold made-up data for screenshots.
 
 </details>
 

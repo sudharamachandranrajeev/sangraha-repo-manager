@@ -242,7 +242,7 @@ impl Board {
     }
 }
 
-fn empty_row(key: String, name: String) -> Row {
+pub(crate) fn empty_row(key: String, name: String) -> Row {
     Row {
         key,
         name,
