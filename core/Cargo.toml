@@ -10,6 +10,8 @@ license.workspace = true
 rusqlite = { version = "0.37", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Secret patterns in the leak check.
+regex = "1"
 # SHA-256 of downloaded apps, checked against the publisher's.
 sha2 = "0.10"
 thiserror = "2"

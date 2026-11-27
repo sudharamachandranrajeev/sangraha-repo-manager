@@ -8,7 +8,7 @@ use std::cmp::Ordering;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use crate::config::Config;
 use crate::github::{Rate, Snapshot};
@@ -105,28 +105,7 @@ pub fn fetch(token: &str, names: &[String]) -> Result<AppsSnapshot> {
         ..Default::default()
     };
     for batch in names.chunks(BATCH) {
-        let mut vars = serde_json::Map::new();
-        let mut params = Vec::new();
-        let mut fields = Vec::new();
-        for (i, full) in batch.iter().enumerate() {
-            let (o, n) = full.split_once('/').unwrap_or((full, ""));
-            vars.insert(format!("o{i}"), json!(o));
-            vars.insert(format!("n{i}"), json!(n));
-            params.push(format!("$o{i}: String!, $n{i}: String!"));
-            fields.push(format!(
-                "r{i}: repository(owner: $o{i}, name: $n{i}) {{ ...App }}"
-            ));
-        }
-        let query = format!(
-            "query({}) {{ {} rateLimit {{ limit remaining resetAt }} }}{QUERY_FRAGMENT}",
-            params.join(", "),
-            fields.join(" ")
-        );
-        let page = crate::github::post_graphql(
-            &agent,
-            token,
-            &json!({ "query": query, "variables": vars }),
-        )?;
+        let page = crate::github::repos_batch(&agent, token, batch, "App", QUERY_FRAGMENT)?;
         parse(&page, batch, &mut snap)?;
     }
     Ok(snap)

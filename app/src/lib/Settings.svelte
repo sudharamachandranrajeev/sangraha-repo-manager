@@ -14,6 +14,11 @@
   let rulesText = $state('')
   let appsError = $state('')
   let appsSaved = $state(false)
+  let termsFile = $state('')
+  let emailsText = $state('')
+  let requireSigned = $state(false)
+  let leakError = $state('')
+  let leakSaved = $state(false)
   let version = $state('')
   let dialog: HTMLDivElement
 
@@ -21,6 +26,9 @@
     cfg = await api.settings()
     rootsText = cfg.roots.join('\n')
     appsDir = cfg.appsDir ?? ''
+    termsFile = cfg.termsFile ?? ''
+    emailsText = cfg.allowedEmails.join('\n')
+    requireSigned = cfg.requireSigned
     prereleases = cfg.prereleases
     delayDays = cfg.delayDays
     extraText = cfg.extraApps.join('\n')
@@ -56,6 +64,17 @@
       onchange()
     } catch (e) {
       appsError = String(e)
+    }
+  }
+
+  async function saveLeaks() {
+    leakError = ''
+    leakSaved = false
+    try {
+      cfg = await api.saveLeakSettings({ termsFile, allowedEmails: emailsText.split('\n'), requireSigned })
+      leakSaved = true
+    } catch (e) {
+      leakError = String(e)
     }
   }
 
@@ -133,6 +152,23 @@
           {/each}
         </ul>
       {/if}
+    </section>
+
+    <section>
+      <h3 class="caps label">Leak check</h3>
+      <p class="hint">
+        Runs before each push from a clone that has it (Security tab). It always stops private emails, paths into your home folder and anything
+        that looks like a password or token.
+      </p>
+      <label for="terms" class="small">File of private words (one per line), such as your street or employer</label>
+      <input id="terms" type="text" bind:value={termsFile} placeholder="Full path, e.g. a file in your home folder" spellcheck="false" />
+      <p class="hint">Sangraha reads this file on your computer only; the words are never sent anywhere.</p>
+      <label for="emails" class="small">Commit emails that are fine to publish (one per line)</label>
+      <textarea id="emails" rows="2" bind:value={emailsText} spellcheck="false" placeholder="GitHub's private @users.noreply.github.com address is always fine"></textarea>
+      <label class="check"><input type="checkbox" bind:checked={requireSigned} /> Stop commits that are not signed</label>
+      {#if leakError}<p class="error" role="alert">{leakError}</p>{/if}
+      <button class="btn" onclick={saveLeaks}>Save leak check settings</button>
+      {#if leakSaved}<span class="hint" role="status"> Saved.</span>{/if}
     </section>
 
     <section>

@@ -197,6 +197,44 @@ pub(crate) fn post_graphql(agent: &ureq::Agent, token: &str, body: &Value) -> Re
     )))
 }
 
+/// One GraphQL request asking about each repository in `batch` (at most 25) through
+/// `fragment`, which must define `fragment <fragment_name> on Repository`. Answers come back as
+/// `data.r0`, `data.r1` … in the order of `batch`, with `data.rateLimit`. Names travel as
+/// variables, never inside the query text.
+pub(crate) fn repos_batch(
+    agent: &ureq::Agent,
+    token: &str,
+    batch: &[String],
+    fragment_name: &str,
+    fragment: &str,
+) -> Result<Value> {
+    let mut vars = serde_json::Map::new();
+    let mut params = Vec::new();
+    let mut fields = Vec::new();
+    for (i, full) in batch.iter().enumerate() {
+        let (o, n) = full.split_once('/').unwrap_or((full, ""));
+        vars.insert(format!("o{i}"), json!(o));
+        vars.insert(format!("n{i}"), json!(n));
+        params.push(format!("$o{i}: String!, $n{i}: String!"));
+        fields.push(format!(
+            "r{i}: repository(owner: $o{i}, name: $n{i}) {{ ...{fragment_name} }}"
+        ));
+    }
+    let query = format!(
+        "query({}) {{ {} rateLimit {{ limit remaining resetAt }} }}{fragment}",
+        params.join(", "),
+        fields.join(" ")
+    );
+    let page = post_graphql(agent, token, &json!({ "query": query, "variables": vars }))?;
+    if page["data"].is_null() {
+        let msg = page["errors"][0]["message"]
+            .as_str()
+            .unwrap_or("no data in the answer");
+        return Err(Error::GitHub(msg.to_owned()));
+    }
+    Ok(page)
+}
+
 /// Adds one page of results to `snap`; returns the cursor of the next page, if any.
 pub fn parse_page(page: &Value, snap: &mut Snapshot) -> Result<Option<String>> {
     let data = &page["data"];
@@ -310,20 +348,27 @@ fn repo_from(n: &Value) -> RemoteRepo {
 /// The current `owner/name` of a repository that was renamed or moved: GitHub still answers
 /// the old name and points to the new one. `None` if it does not exist (or is not visible).
 pub fn current_name(token: &str, full_name: &str) -> Result<Option<String>> {
-    let res = agent()
-        .get(format!("{API}/repos/{full_name}"))
+    Ok(get_json(&agent(), token, &format!("repos/{full_name}"))?.and_then(|v| s(&v["full_name"])))
+}
+
+/// A GET on the REST API. `None` when GitHub says the thing is missing, turned off or not
+/// allowed (404, 403, 410, 422, 451), which for alert lists means "not available here".
+pub(crate) fn get_json(agent: &ureq::Agent, token: &str, path: &str) -> Result<Option<Value>> {
+    let res = agent
+        .get(format!("{API}/{path}"))
         .header("Authorization", &format!("bearer {token}"))
         .header("Accept", "application/vnd.github+json")
         .call();
     match res {
-        Ok(mut r) => {
-            let v: Value = r
-                .body_mut()
-                .read_json()
-                .map_err(|e| Error::GitHub(e.to_string()))?;
-            Ok(s(&v["full_name"]))
-        }
-        Err(ureq::Error::StatusCode(404 | 403 | 451)) => Ok(None),
+        Ok(mut r) => r
+            .body_mut()
+            .read_json()
+            .map(Some)
+            .map_err(|e| Error::GitHub(e.to_string())),
+        Err(ureq::Error::StatusCode(404 | 403 | 410 | 422 | 451)) => Ok(None),
+        Err(ureq::Error::StatusCode(401)) => Err(Error::Auth(
+            "GitHub refused the login. Run: gh auth login".into(),
+        )),
         Err(e) => Err(Error::GitHub(e.to_string())),
     }
 }

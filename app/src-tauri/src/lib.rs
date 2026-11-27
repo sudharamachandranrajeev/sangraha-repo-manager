@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use sangraha_core::{AppsBoard, Board, Config};
+use sangraha_core::{AppsBoard, Board, Config, SecurityBoard};
 use serde::Serialize;
 use tauri::Emitter;
 
@@ -299,6 +299,73 @@ fn save_apps_settings(
     Ok(cfg)
 }
 
+/// The Security tab from the last GitHub answer, with each clone's hook. No network.
+#[tauri::command]
+async fn security_board() -> Result<SecurityBoard, String> {
+    blocking(|| sangraha_core::security_load(&Config::load()).map_err(|e| e.to_string())).await
+}
+
+#[tauri::command]
+async fn security_refresh() -> Result<SecurityBoard, String> {
+    blocking(|| sangraha_core::security_refresh(&Config::load()).map_err(|e| e.to_string())).await
+}
+
+/// Installs or removes the leak check hook in one clone. Only clones Sangraha found under the
+/// configured folders are touched.
+#[tauri::command]
+async fn set_hook(path: String, on: bool) -> Result<String, String> {
+    blocking(move || {
+        let path = PathBuf::from(path);
+        if !sangraha_core::local::find(&Config::load().roots).contains(&path) {
+            return Err(format!("{} is not one of the clones Sangraha lists", path.display()));
+        }
+        let r = if on {
+            let cli = sangraha_core::hooks::cli_path().ok_or(
+                "The sangraha command line program was not found. Install it first (see the README)",
+            )?;
+            sangraha_core::hooks::install(&path, &cli)
+        } else {
+            sangraha_core::hooks::remove(&path)
+        };
+        r.map_err(|e| e.to_string())
+    })
+    .await
+}
+
+#[tauri::command]
+fn save_leak_settings(
+    terms_file: String,
+    allowed_emails: Vec<String>,
+    require_signed: bool,
+) -> Result<Config, String> {
+    let mut cfg = Config::load();
+    let f = terms_file.trim();
+    cfg.terms_file = if f.is_empty() {
+        None
+    } else {
+        let p = PathBuf::from(f);
+        if !p.is_absolute() || !p.is_file() {
+            return Err(format!("{f}: not a file (use a full path)"));
+        }
+        Some(p)
+    };
+    let mut emails = Vec::new();
+    for e in allowed_emails
+        .iter()
+        .map(|e| e.trim())
+        .filter(|e| !e.is_empty())
+    {
+        if !e.contains('@') || e.contains(char::is_whitespace) {
+            return Err(format!("{e} is not an email address"));
+        }
+        emails.push(e.to_lowercase());
+    }
+    cfg.allowed_emails = emails;
+    cfg.require_signed = require_signed;
+    cfg.save().map_err(|e| e.to_string())?;
+    Ok(cfg)
+}
+
 #[tauri::command]
 fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
@@ -322,6 +389,10 @@ pub fn run() {
             launch_app,
             set_app_hidden,
             save_apps_settings,
+            security_board,
+            security_refresh,
+            set_hook,
+            save_leak_settings,
             version
         ])
         .run(tauri::generate_context!())

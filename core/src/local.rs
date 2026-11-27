@@ -48,12 +48,7 @@ pub struct LocalClone {
 
 /// Every clone under the roots, sorted by path. Clones are read in parallel.
 pub fn scan(roots: &[PathBuf]) -> Vec<LocalClone> {
-    let mut found = Vec::new();
-    for root in roots {
-        walk(root, 0, &mut found);
-    }
-    found.sort();
-    found.dedup();
+    let found = find(roots);
     let workers = std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(4)
@@ -71,6 +66,17 @@ pub fn scan(roots: &[PathBuf]) -> Vec<LocalClone> {
     });
     clones.sort_by(|a, b| a.path.cmp(&b.path));
     clones
+}
+
+/// The clone folders under the roots, sorted, without reading them.
+pub fn find(roots: &[PathBuf]) -> Vec<PathBuf> {
+    let mut found = Vec::new();
+    for root in roots {
+        walk(root, 0, &mut found);
+    }
+    found.sort();
+    found.dedup();
+    found
 }
 
 fn walk(dir: &Path, depth: usize, found: &mut Vec<PathBuf>) {
@@ -106,7 +112,7 @@ fn is_clone(dir: &Path) -> bool {
     std::fs::read(&dot).is_ok_and(|b| b.starts_with(b"gitdir:"))
 }
 
-fn git(path: &Path, args: &[&str]) -> Result<String, String> {
+pub(crate) fn git(path: &Path, args: &[&str]) -> Result<String, String> {
     let out = Command::new("git")
         .arg("-C")
         .arg(path)

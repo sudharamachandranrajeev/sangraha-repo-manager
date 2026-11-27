@@ -1,0 +1,295 @@
+{
+ "checkedAt": 0,
+ "rate": {
+  "limit": 5000,
+  "remaining": 4987,
+  "resetAt": "2026-11-27T15:00:00Z"
+ },
+ "groups": [
+  {
+   "ecosystem": "npm",
+   "package": "undici",
+   "severity": "high",
+   "shipped": true,
+   "repos": [
+    "you/harbor-notes",
+    "you/pocket-recipes",
+    "you/signal-board"
+   ],
+   "fix": "6.21.2",
+   "unfixed": 0,
+   "alerts": [
+    {
+     "repo": "you/harbor-notes",
+     "number": 4,
+     "package": "undici",
+     "ecosystem": "npm",
+     "severity": "high",
+     "scope": "runtime",
+     "manifest": "package-lock.json",
+     "requirement": "< 6.21.2",
+     "patched": "6.21.2",
+     "advisory": "GHSA-demo-0001",
+     "summary": "Unbounded decompression",
+     "url": "https://github.com/you/harbor-notes/security/dependabot/4"
+    },
+    {
+     "repo": "you/pocket-recipes",
+     "number": 9,
+     "package": "undici",
+     "ecosystem": "npm",
+     "severity": "high",
+     "scope": "runtime",
+     "manifest": "package-lock.json",
+     "requirement": "< 6.21.2",
+     "patched": "6.21.2",
+     "advisory": "GHSA-demo-0001",
+     "summary": "Unbounded decompression",
+     "url": "https://github.com/you/pocket-recipes/security/dependabot/9"
+    },
+    {
+     "repo": "you/signal-board",
+     "number": 2,
+     "package": "undici",
+     "ecosystem": "npm",
+     "severity": "moderate",
+     "scope": "runtime",
+     "manifest": "package-lock.json",
+     "requirement": "< 6.21.1",
+     "patched": "6.21.1",
+     "advisory": "GHSA-demo-0002",
+     "summary": "Insufficient randomness",
+     "url": "https://github.com/you/signal-board/security/dependabot/2"
+    }
+   ]
+  },
+  {
+   "ecosystem": "rust",
+   "package": "ring",
+   "severity": "high",
+   "shipped": true,
+   "repos": [
+    "you/trail-tracker"
+   ],
+   "fix": "0.17.12",
+   "unfixed": 0,
+   "alerts": [
+    {
+     "repo": "you/trail-tracker",
+     "number": 3,
+     "package": "ring",
+     "ecosystem": "rust",
+     "severity": "high",
+     "scope": "unknown",
+     "manifest": "package-lock.json",
+     "requirement": "< 0.17.12",
+     "patched": "0.17.12",
+     "advisory": "GHSA-demo-0003",
+     "summary": "Panic on overflow",
+     "url": "https://github.com/you/trail-tracker/security/dependabot/3"
+    }
+   ]
+  },
+  {
+   "ecosystem": "rust",
+   "package": "glib",
+   "severity": "moderate",
+   "shipped": true,
+   "repos": [
+    "you/harbor-notes",
+    "you/lantern-budget",
+    "you/meadow-photos",
+    "you/trail-tracker"
+   ],
+   "fix": "0.20.0",
+   "unfixed": 0,
+   "alerts": [
+    {
+     "repo": "you/harbor-notes",
+     "number": 1,
+     "package": "glib",
+     "ecosystem": "rust",
+     "severity": "moderate",
+     "scope": "unknown",
+     "manifest": "package-lock.json",
+     "requirement": "< 0.20.0",
+     "patched": "0.20.0",
+     "advisory": "GHSA-demo-0004",
+     "summary": "Unsound iterator",
+     "url": "https://github.com/you/harbor-notes/security/dependabot/1"
+    },
+    {
+     "repo": "you/lantern-budget",
+     "number": 2,
+     "package": "glib",
+     "ecosystem": "rust",
+     "severity": "moderate",
+     "scope": "unknown",
+     "manifest": "package-lock.json",
+     "requirement": "< 0.20.0",
+     "patched": "0.20.0",
+     "advisory": "GHSA-demo-0004",
+     "summary": "Unsound iterator",
+     "url": "https://github.com/you/lantern-budget/security/dependabot/2"
+    },
+    {
+     "repo": "you/meadow-photos",
+     "number": 3,
+     "package": "glib",
+     "ecosystem": "rust",
+     "severity": "moderate",
+     "scope": "unknown",
+     "manifest": "package-lock.json",
+     "requirement": "< 0.20.0",
+     "patched": "0.20.0",
+     "advisory": "GHSA-demo-0004",
+     "summary": "Unsound iterator",
+     "url": "https://github.com/you/meadow-photos/security/dependabot/3"
+    },
+    {
+     "repo": "you/trail-tracker",
+     "number": 4,
+     "package": "glib",
+     "ecosystem": "rust",
+     "severity": "moderate",
+     "scope": "unknown",
+     "manifest": "package-lock.json",
+     "requirement": "< 0.20.0",
+     "patched": "0.20.0",
+     "advisory": "GHSA-demo-0004",
+     "summary": "Unsound iterator",
+     "url": "https://github.com/you/trail-tracker/security/dependabot/4"
+    }
+   ]
+  },
+  {
+   "ecosystem": "npm",
+   "package": "vite",
+   "severity": "moderate",
+   "shipped": false,
+   "repos": [
+    "you/lantern-budget",
+    "you/meadow-photos"
+   ],
+   "fix": "6.1.6",
+   "unfixed": 1,
+   "alerts": [
+    {
+     "repo": "you/lantern-budget",
+     "number": 7,
+     "package": "vite",
+     "ecosystem": "npm",
+     "severity": "moderate",
+     "scope": "development",
+     "manifest": "package-lock.json",
+     "requirement": "< 6.1.6",
+     "patched": "6.1.6",
+     "advisory": "GHSA-demo-0005",
+     "summary": "Dev server file read",
+     "url": "https://github.com/you/lantern-budget/security/dependabot/7"
+    },
+    {
+     "repo": "you/meadow-photos",
+     "number": 5,
+     "package": "vite",
+     "ecosystem": "npm",
+     "severity": "low",
+     "scope": "development",
+     "manifest": "package-lock.json",
+     "requirement": "< 9",
+     "patched": null,
+     "advisory": "GHSA-demo-0006",
+     "summary": "Path check",
+     "url": "https://github.com/you/meadow-photos/security/dependabot/5"
+    }
+   ]
+  },
+  {
+   "ecosystem": "npm",
+   "package": "esbuild",
+   "severity": "moderate",
+   "shipped": false,
+   "repos": [
+    "you/paper-trail"
+   ],
+   "fix": "0.25.0",
+   "unfixed": 0,
+   "alerts": [
+    {
+     "repo": "you/paper-trail",
+     "number": 1,
+     "package": "esbuild",
+     "ecosystem": "npm",
+     "severity": "moderate",
+     "scope": "development",
+     "manifest": "package-lock.json",
+     "requirement": "< 0.25.0",
+     "patched": "0.25.0",
+     "advisory": "GHSA-demo-0007",
+     "summary": "Dev server CORS",
+     "url": "https://github.com/you/paper-trail/security/dependabot/1"
+    }
+   ]
+  }
+ ],
+ "scans": [
+  {
+   "repo": "you/signal-board",
+   "secrets": 1,
+   "code": 0,
+   "codeSerious": 0
+  },
+  {
+   "repo": "you/trail-tracker",
+   "secrets": 0,
+   "code": 4,
+   "codeSerious": 1
+  }
+ ],
+ "counts": {
+  "critical": 0,
+  "high": 3,
+  "moderate": 8,
+  "low": 1,
+  "shipped": 9,
+  "development": 3,
+  "secrets": 1,
+  "code": 4,
+  "secretsOff": 2,
+  "codeOff": 7
+ },
+ "hooks": [
+  {
+   "path": "/home/you/Work/harbor-notes",
+   "github": "you/harbor-notes",
+   "state": "sangraha"
+  },
+  {
+   "path": "/home/you/Work/lantern-budget",
+   "github": "you/lantern-budget",
+   "state": "sangraha"
+  },
+  {
+   "path": "/home/you/Work/meadow-photos",
+   "github": "you/meadow-photos",
+   "state": "none"
+  },
+  {
+   "path": "/home/you/Work/pocket-recipes",
+   "github": "you/pocket-recipes",
+   "state": "none"
+  },
+  {
+   "path": "/home/you/Work/trail-tracker",
+   "github": "you/trail-tracker",
+   "state": "other"
+  },
+  {
+   "path": "/home/you/Work/paper-trail",
+   "github": "you/paper-trail",
+   "state": "sangraha"
+  }
+ ],
+ "cli": "/home/you/.cargo/bin/sangraha",
+ "warnings": []
+}

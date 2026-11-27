@@ -33,6 +33,16 @@ pub struct Config {
     /// for any text. For apps whose file names Sangraha cannot read.
     #[serde(default)]
     pub asset_rules: BTreeMap<String, String>,
+    /// Leak check: a file of private words (one per line, `#` for comments) that must never
+    /// reach GitHub, such as a street name or an employer.
+    #[serde(default)]
+    pub terms_file: Option<PathBuf>,
+    /// Leak check: commit emails allowed besides GitHub's private `@users.noreply.github.com`.
+    #[serde(default)]
+    pub allowed_emails: Vec<String>,
+    /// Leak check: block commits that are not signed.
+    #[serde(default)]
+    pub require_signed: bool,
 }
 
 fn yes() -> bool {
@@ -57,6 +67,9 @@ impl Default for Config {
             prereleases: true,
             delay_days: 0,
             asset_rules: BTreeMap::new(),
+            terms_file: None,
+            allowed_emails: Vec::new(),
+            require_signed: false,
         }
     }
 }

@@ -439,35 +439,9 @@
     height: 100%;
     font-style: normal;
   }
-  .scrim {
-    position: fixed;
-    inset: 0;
-    z-index: 40;
-    display: grid;
-    place-items: center;
-    background: rgb(0 0 0 / 35%);
-  }
-  .dialog {
-    width: min(520px, calc(100vw - 32px));
-    padding: 20px 22px;
-    border: 1px solid var(--line-strong);
-    background: var(--surface);
-    box-shadow: 0 20px 60px rgb(0 0 0 / 30%);
-  }
-  .dialog h2 {
-    margin: 0 0 10px;
-    font-size: 13px;
-  }
-  .plan {
-    margin: 12px 0;
-    padding: 0;
-    list-style: none;
-    max-height: 260px;
-    overflow: auto;
-    border-top: 1px solid var(--line);
-  }
   .plan li {
     display: grid;
+    padding: 8px 0;
     grid-template-columns: 1fr auto 70px;
     gap: 12px;
     padding: 8px 0;
@@ -475,11 +449,5 @@
   }
   .plan li span:last-child {
     text-align: right;
-  }
-  .dlgact {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 16px;
   }
 </style>

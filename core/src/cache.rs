@@ -62,6 +62,14 @@ impl Cache {
         self.put("apps", s)
     }
 
+    pub fn security(&self) -> Result<Option<crate::security::SecuritySnapshot>> {
+        self.get("security")
+    }
+
+    pub fn set_security(&self, s: &crate::security::SecuritySnapshot) -> Result<()> {
+        self.put("security", s)
+    }
+
     /// Old `owner/name` (lower case) → current `owner/name`; an empty value means "checked, gone".
     pub fn renames(&self) -> Result<HashMap<String, String>> {
         Ok(self.get("renames")?.unwrap_or_default())

@@ -9,12 +9,16 @@ pub mod board;
 pub mod cache;
 pub mod config;
 pub mod github;
+pub mod hooks;
 pub mod install;
+pub mod leaks;
 pub mod local;
+pub mod security;
 
 pub use apps::{AppRow, AppStatus, AppsBoard};
 pub use board::{Board, Counts, Level, Problem, ProblemKind, Row, build};
 pub use config::Config;
+pub use security::{Gate, SecurityBoard};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -180,6 +184,73 @@ pub fn install_app(
         Error::Install("The Apps list has not been read yet; refresh first".into())
     })?;
     install::install(cfg, &snap, key, allow_unverified, progress)
+}
+
+/// The Security tab from the last GitHub answer, with a fresh look at the clones' hooks.
+pub fn security_load(cfg: &Config) -> Result<SecurityBoard> {
+    let cache = cache::Cache::open_default()?;
+    Ok(security::build(
+        cache.security()?.as_ref(),
+        security::hook_rows(&cfg.roots),
+    ))
+}
+
+/// Reads the security alerts again. Uses the repository snapshot to know which repositories
+/// have Dependabot alerts, reading it first if there is none yet.
+pub fn security_refresh(cfg: &Config) -> Result<SecurityBoard> {
+    let token = github::token()?;
+    let cache = cache::Cache::open_default()?;
+    let repos = match cache.snapshot()? {
+        Some(s) => s,
+        None => {
+            let s = github::fetch(&token)?;
+            cache.set_snapshot(&s)?;
+            s
+        }
+    };
+    let snap = security::fetch(&token, &repos.repos)?;
+    cache.set_security(&snap)?;
+    Ok(security::build(
+        Some(&snap),
+        security::hook_rows(&cfg.roots),
+    ))
+}
+
+/// What the `pre-push` hook decides: the leak check over the commits being pushed, and for a
+/// tag, the release gate.
+#[derive(Debug, Clone, Default, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PushCheck {
+    pub leaks: leaks::Report,
+    pub gate: Option<Gate>,
+}
+
+impl PushCheck {
+    pub fn blocked(&self) -> bool {
+        !self.leaks.findings.is_empty() || self.gate.as_ref().is_some_and(|g| g.blocked)
+    }
+}
+
+/// Runs the push check in `repo` for the refs a `pre-push` hook got on standard input.
+/// `remote_url` names the GitHub repository for the release gate.
+pub fn check_push(
+    cfg: &Config,
+    repo: &std::path::Path,
+    stdin: &str,
+    remote_url: &str,
+) -> Result<PushCheck> {
+    let login = cache::Cache::open_default()
+        .ok()
+        .and_then(|c| c.snapshot().ok().flatten())
+        .map(|s| s.login);
+    let rules = leaks::Rules::for_owner(cfg, login, repo);
+    let (ranges, tags) = leaks::push_ranges(repo, stdin);
+    let leaks = leaks::scan_all(repo, &ranges, &rules)?;
+    let gate = tags.then(|| {
+        let full = local::github_name(remote_url);
+        security::gate(full.as_deref(), Some(repo))
+    });
+    Ok(PushCheck { leaks, gate })
 }
 
 /// Seconds since the Unix epoch.

@@ -7,12 +7,13 @@ import { invoke as tauriInvoke } from '@tauri-apps/api/core'
 const inTauri = '__TAURI_INTERNALS__' in window
 
 async function demo<T>(cmd: string): Promise<T> {
-  if (cmd === 'board' || cmd === 'refresh' || cmd === 'apps_board' || cmd === 'apps_refresh') {
-    const file = cmd.startsWith('apps') ? 'apps' : 'board'
+  if (cmd === 'board' || cmd === 'refresh' || cmd.endsWith('_board') || cmd.endsWith('_refresh')) {
+    const file = cmd.startsWith('apps') ? 'apps' : cmd.startsWith('security') ? 'security' : 'board'
     const b = (await (await fetch(`/demo/${file}.json`)).json()) as { checkedAt: number | null }
     b.checkedAt = Math.floor(Date.now() / 1000) - 180
     return b as T
   }
+  if (cmd === 'set_hook') return 'Demo: nothing was changed' as T
   if (cmd.startsWith('set') || cmd.startsWith('save') || cmd === 'settings')
     return {
       roots: ['/home/you/Work'],
@@ -23,6 +24,9 @@ async function demo<T>(cmd: string): Promise<T> {
       prereleases: true,
       delayDays: 0,
       assetRules: {},
+      termsFile: null,
+      allowedEmails: [],
+      requireSigned: false,
     } as T
   if (cmd === 'version') return 'demo' as T
   return undefined as T
@@ -154,6 +158,75 @@ export interface Config {
   prereleases: boolean
   delayDays: number
   assetRules: Record<string, string>
+  termsFile: string | null
+  allowedEmails: string[]
+  requireSigned: boolean
+}
+
+export type Severity = 'low' | 'moderate' | 'high' | 'critical'
+export type Scope = 'runtime' | 'development' | 'unknown'
+
+export interface SecurityAlert {
+  repo: string
+  number: number
+  package: string
+  ecosystem: string
+  severity: Severity
+  scope: Scope
+  manifest: string | null
+  requirement: string | null
+  patched: string | null
+  advisory: string
+  summary: string
+  url: string
+}
+
+export interface PackageGroup {
+  ecosystem: string
+  package: string
+  severity: Severity
+  shipped: boolean
+  repos: string[]
+  fix: string | null
+  unfixed: number
+  alerts: SecurityAlert[]
+}
+
+export interface RepoScan {
+  repo: string
+  secrets: number | null
+  code: number | null
+  codeSerious: number
+}
+
+export type HookState = 'none' | 'sangraha' | 'other' | 'shared'
+
+export interface HookRow {
+  path: string
+  github: string | null
+  state: HookState
+}
+
+export interface SecurityBoard {
+  checkedAt: number | null
+  rate: { limit: number; remaining: number; resetAt: string } | null
+  groups: PackageGroup[]
+  scans: RepoScan[]
+  counts: {
+    critical: number
+    high: number
+    moderate: number
+    low: number
+    shipped: number
+    development: number
+    secrets: number
+    code: number
+    secretsOff: number
+    codeOff: number
+  }
+  hooks: HookRow[]
+  cli: string | null
+  warnings: string[]
 }
 
 export type AppStatus = 'update' | 'unknown' | 'waiting' | 'upToDate' | 'notInstalled' | 'noBuild'
@@ -240,6 +313,11 @@ export const api = {
   setAppHidden: (key: string, hidden: boolean) => invoke<Config>('set_app_hidden', { key, hidden }),
   saveAppsSettings: (s: { appsDir: string; prereleases: boolean; delayDays: number; extraApps: string[]; rules: string[] }) =>
     invoke<Config>('save_apps_settings', s),
+  securityBoard: () => invoke<SecurityBoard>('security_board'),
+  securityRefresh: () => invoke<SecurityBoard>('security_refresh'),
+  setHook: (path: string, on: boolean) => invoke<string>('set_hook', { path, on }),
+  saveLeakSettings: (s: { termsFile: string; allowedEmails: string[]; requireSigned: boolean }) =>
+    invoke<Config>('save_leak_settings', s),
 }
 
 /** Download progress while an app installs. Does nothing outside the Sangraha window. */

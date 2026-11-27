@@ -1,7 +1,7 @@
 <div align="center">
   <img src="app/public/favicon.svg" width="140" alt="Sangraha logo">
   <h1>Sangraha</h1>
-  <h4>Your GitHub repositories and the apps you publish, on one board: what needs you first, and what to update.</h4>
+  <h4>Your GitHub repositories, the apps you publish and their security, on one board: what needs you first.</h4>
 
   <p>
     <img src="https://img.shields.io/badge/status-alpha-orange" alt="Status: alpha">
@@ -21,7 +21,7 @@
 </div>
 
 Sangraha ("collection" in Sanskrit) is for people who keep many repositories at once. It has
-two tabs:
+three tabs:
 
 - **Repos** reads GitHub and the clones on your computer together and answers *what needs me
   today?* Failing checks, security alerts, commits that never reached GitHub and forgotten
@@ -29,6 +29,8 @@ two tabs:
 - **Apps** lists the apps your repositories publish as GitHub releases (and any other
   repository you follow), shows which are installed here and which have an update, and
   installs them for you, checked and with an undo.
+- **Security** groups open security alerts across all your repositories by package, so one
+  upgrade closes many, and adds a leak check that reads every push before it leaves.
 
 Sangraha is **alpha** software. On the Repos tab it only reads: it never commits, pushes or
 changes your files. There is no download yet; build it from source (below).
@@ -63,8 +65,18 @@ changes your files. There is no download yet; build it from source (below).
   the download size first.
 - ⏳ **Wait a few days if you like** – an optional delay before an update is offered, so a
   broken release can be fixed before it reaches you.
-- ⌨️ **Command line too** – `sangraha status` and `sangraha apps` print the same boards in a
-  terminal.
+- 🧯 **Security alerts by package** – Dependabot alerts from every repository in one list,
+  grouped by package, worst first, with the version that fixes them all. *Shipped* packages
+  (in what people install) are kept apart from *build only* ones. Secret and code scanning
+  alerts sit below.
+- 🚧 **Leak check before every push** – a git hook stops a push that would publish a private
+  email, a path into your home folder, a word from your private list, or anything that
+  looks like a password or token (with [gitleaks](https://github.com/gitleaks/gitleaks) too,
+  if installed). One button adds it to every clone; a hook already there keeps running.
+- 🏁 **Release gate** – pushing a tag is stopped while shipped dependencies have open high or
+  critical alerts on GitHub, or `npm audit` finds some.
+- ⌨️ **Command line too** – `sangraha status`, `sangraha apps` and `sangraha security` print the
+  same boards in a terminal.
 
 ## 📸 Screenshots
 
@@ -76,6 +88,12 @@ changes your files. There is no download yet; build it from source (below).
   <tr>
     <td align="center">Repos tab, light theme</td>
     <td align="center">Apps tab, dark theme</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/security-dark.png" alt="The Security tab: alerts grouped by package, then secret and code scanning, then the leak check per clone"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">Security tab, dark theme</td>
   </tr>
 </table>
 
@@ -120,6 +138,10 @@ sangraha install owner/name
 sangraha install --updates
 sangraha rollback owner/name
 sangraha follow someone/their-app
+sangraha security          # alerts by package, secret and code scanning
+sangraha leaks             # check unpushed commits here for leaks
+sangraha hook install --all  # the leak check in every clone
+sangraha gate              # may this clone's next release go out?
 ```
 
 </details>
@@ -165,8 +187,10 @@ Sangraha lists repositories you own. A clone of someone else's repository shows 
 <details>
 <summary>Does it change anything in my repositories?</summary>
 
-No. It runs read-only `git` commands, plus `git fetch` when you press **Fetch all**. Buttons
-open GitHub, a file manager or a terminal; what happens next is up to you.
+Not your files or your history. It runs read-only `git` commands, plus `git fetch` when you
+press **Fetch all**. The one thing it writes into a clone is the leak check hook in
+`.git/hooks`, and only when you press **Add**. Other buttons open GitHub, a file manager or a
+terminal; what happens next is up to you.
 </details>
 
 <details>
@@ -192,6 +216,23 @@ Sangraha never replaces an app that is open. Close it, then press **Update** aga
 </details>
 
 <details>
+<summary>The leak check stopped my push. Now what?</summary>
+
+It lists each problem with its commit, file and line. Change the file, then fix the commit:
+`git commit --amend` for the last one, or `git rebase -i` for older ones, and push again. If
+it is a false alarm, `git push --no-verify` pushes once without any hook. For words that are
+fine to publish, take them out of your private list (settings).
+</details>
+
+<details>
+<summary>Does the leak check replace my own pre-push hook?</summary>
+
+No. Sangraha renames it to `pre-push.local` and runs it after its own check. **Remove** puts
+it back. Clones that share one hooks folder (`core.hooksPath`) are left alone; the Security
+tab says so.
+</details>
+
+<details>
 <summary>What does "Local only" mean?</summary>
 
 The folder is a git repository with no remote, or its remote is not on GitHub. Its commits
@@ -203,12 +244,13 @@ exist on this computer only.
 <details>
 <summary>Build, test and screenshots</summary>
 
-- `core/` – the boards: GitHub, clones, cache, and app installs (`apps.rs`, `install.rs`). `cli/` – the `sangraha` command. `app/` – the
+- `core/` – the boards: GitHub, clones, cache, app installs (`apps.rs`, `install.rs`), and
+  security (`security.rs`, `leaks.rs`, `hooks.rs`). `cli/` – the `sangraha` command. `app/` – the
   window (Tauri 2, Svelte 5).
 - Checks: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace`, and in `app/`, `npm run check`.
-- In a plain browser, `npm run dev` reads `app/demo/board.json` and `app/demo/apps.json`
-  instead of the real boards. They hold made-up repositories and apps for screenshots.
+- In a plain browser, `npm run dev` reads `app/demo/board.json`, `apps.json` and
+  `security.json` instead of the real boards. They hold made-up data for screenshots.
 
 </details>
 

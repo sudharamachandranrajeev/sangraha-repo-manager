@@ -17,6 +17,10 @@ Usage:
   sangraha install OWNER/NAME... [--unverified] | sangraha install --updates
   sangraha rollback OWNER/NAME
   sangraha follow OWNER/NAME... | sangraha unfollow OWNER/NAME...
+  sangraha security [--json] [--offline]
+  sangraha leaks [PATH]
+  sangraha hook install|remove [PATH... | --all] | sangraha hook status
+  sangraha gate [PATH]
 
 status    What needs attention. Reads GitHub through your gh login (gh auth login).
   --all       every repository, not only those that need attention
@@ -36,6 +40,16 @@ install   Download, check the SHA-256 and install for this user (no admin passwo
   --updates     install every available update
 rollback  Go back to the copy kept from before the last update.
 follow    Track another repository's releases in the Apps list; unfollow stops.
+
+security  Open security alerts across your repositories, grouped by package, shipped
+          dependencies first; and secret and code scanning alerts per repository.
+leaks     Check the commits in PATH (default: here) that are not on GitHub yet for private
+          emails, home folder paths, private words and secrets. Exit status 1 if any.
+hook      Install the leak check as a pre-push hook in the clones named (or --all clones),
+          so every push is checked first; pushing a tag also runs the release gate. A hook
+          that was there before keeps running after it. remove takes it out.
+gate      Should a release go out? No, while shipped dependencies have open high or
+          critical alerts on GitHub, or npm audit finds some. Exit status 1 if not.
 ";
 
 fn main() -> ExitCode {
@@ -63,6 +77,11 @@ fn main() -> ExitCode {
             None => Err("name the app: sangraha rollback owner/name".into()),
         },
         Some(cmd @ ("follow" | "unfollow")) => follow(cmd == "follow", &args[1..]),
+        Some("security") => security(flag("--json"), flag("--offline")),
+        Some("leaks") => leaks(args.get(1).map(PathBuf::from)),
+        Some("check-push") => check_push(args.get(2).map(String::as_str).unwrap_or("")),
+        Some("hook") => hook(args.get(1).map(String::as_str), &args[2..], flag("--all")),
+        Some("gate") => gate(args.get(1).map(PathBuf::from)),
         Some("-V" | "--version") => {
             println!("sangraha {}", env!("CARGO_PKG_VERSION"));
             Ok(ExitCode::SUCCESS)
@@ -384,5 +403,259 @@ fn follow(on: bool, keys: &[String]) -> Result<ExitCode, String> {
     for e in &cfg.extra_apps {
         println!("following: {e}");
     }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn security(json: bool, offline: bool) -> Result<ExitCode, String> {
+    let cfg = Config::load();
+    let b = if offline {
+        sangraha_core::security_load(&cfg)
+    } else {
+        sangraha_core::security_refresh(&cfg)
+    }
+    .map_err(|e| e.to_string())?;
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&b).map_err(|e| e.to_string())?
+        );
+        return Ok(ExitCode::SUCCESS);
+    }
+    let c = &b.counts;
+    out!(
+        "{} critical · {} high · {} moderate · {} low · {} in shipped dependencies · {} secrets · {} code scanning",
+        c.critical,
+        c.high,
+        c.moderate,
+        c.low,
+        c.shipped,
+        c.secrets,
+        c.code
+    );
+    out!("");
+    if b.groups.is_empty() {
+        out!("No open security alerts.");
+    }
+    for g in &b.groups {
+        let fix = match (&g.fix, g.unfixed) {
+            (Some(f), 0) => format!("upgrade to {f} or later"),
+            (Some(f), n) => format!("upgrade to {f} or later ({n} with no fix yet)"),
+            (None, _) => "no fix yet".into(),
+        };
+        out!(
+            "{:9} {} ({}){}: {} · {}",
+            format!("{:?}", g.severity).to_lowercase(),
+            g.package,
+            g.ecosystem,
+            if g.shipped { "" } else { " dev only" },
+            g.repos
+                .iter()
+                .map(|r| short(r))
+                .collect::<Vec<_>>()
+                .join(", "),
+            fix
+        );
+    }
+    if !b.scans.is_empty() {
+        out!("");
+        for s in &b.scans {
+            out!(
+                "{}: {} secret{} · {} code scanning ({} high or critical)",
+                short(&s.repo),
+                s.secrets.unwrap_or(0),
+                if s.secrets == Some(1) { "" } else { "s" },
+                s.code.unwrap_or(0),
+                s.code_serious
+            );
+        }
+    }
+    out!("");
+    out!(
+        "Secret scanning is off or not available in {} repositories; code scanning in {}.",
+        c.secrets_off,
+        c.code_off
+    );
+    let missing = b
+        .hooks
+        .iter()
+        .filter(|h| h.state != sangraha_core::hooks::HookState::Sangraha)
+        .count();
+    out!("");
+    out!(
+        "Leak check before push: in {} of {} clones (sangraha hook install --all)",
+        b.hooks.len() - missing,
+        b.hooks.len()
+    );
+    for w in &b.warnings {
+        eprintln!("note: {w}");
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+/// `name` from `owner/name`: the Security tab only lists the owner's own repositories.
+fn short(full: &str) -> &str {
+    full.split_once('/').map_or(full, |(_, n)| n)
+}
+
+fn print_leaks(r: &sangraha_core::leaks::Report) {
+    use sangraha_core::leaks::LeakKind;
+    for f in &r.findings {
+        let what = match f.kind {
+            LeakKind::Email => "private email",
+            LeakKind::Secret => "secret",
+            LeakKind::HomePath => "home folder path",
+            LeakKind::Term => "private word",
+            LeakKind::Unsigned => "unsigned commit",
+        };
+        let place = match (&f.file, f.line) {
+            (Some(file), Some(l)) => format!("{file}:{l}"),
+            (Some(file), None) => file.clone(),
+            (None, _) if matches!(f.kind, LeakKind::Unsigned) => String::new(),
+            (None, _) => "commit message or author".into(),
+        };
+        eprintln!("  {}  {what}: {}  {place}", f.commit, f.text);
+    }
+    for w in &r.warnings {
+        eprintln!("note: {w}");
+    }
+}
+
+fn leaks(path: Option<PathBuf>) -> Result<ExitCode, String> {
+    let repo = path.unwrap_or_else(|| PathBuf::from("."));
+    let cfg = Config::load();
+    let login = sangraha_core::cache::Cache::open_default()
+        .ok()
+        .and_then(|c| c.snapshot().ok().flatten())
+        .map(|s| s.login);
+    let rules = sangraha_core::leaks::Rules::for_owner(&cfg, login, &repo);
+    let revs: Vec<String> = ["--branches", "--tags", "--not", "--remotes"]
+        .map(String::from)
+        .to_vec();
+    let r = sangraha_core::leaks::scan(&repo, &revs, &rules).map_err(|e| e.to_string())?;
+    if r.findings.is_empty() {
+        println!("{} unpushed commits checked: nothing found.", r.commits);
+        print_leaks(&r);
+        return Ok(ExitCode::SUCCESS);
+    }
+    eprintln!(
+        "{} unpushed commits checked: {} problem{}:",
+        r.commits,
+        r.findings.len(),
+        if r.findings.len() == 1 { "" } else { "s" }
+    );
+    print_leaks(&r);
+    Ok(ExitCode::from(1))
+}
+
+/// Called by the pre-push hook, in the clone, with git's ref lines on standard input.
+fn check_push(url: &str) -> Result<ExitCode, String> {
+    let mut stdin = String::new();
+    std::io::Read::read_to_string(&mut std::io::stdin(), &mut stdin).map_err(|e| e.to_string())?;
+    let cfg = Config::load();
+    let check = sangraha_core::check_push(&cfg, std::path::Path::new("."), &stdin, url)
+        .map_err(|e| e.to_string())?;
+    if !check.leaks.findings.is_empty() {
+        eprintln!("Sangraha stopped this push. These would reach GitHub:");
+    }
+    print_leaks(&check.leaks);
+    if let Some(g) = &check.gate {
+        for r in &g.reasons {
+            eprintln!("Release gate: {r}");
+        }
+        for w in &g.warnings {
+            eprintln!("note: {w}");
+        }
+    }
+    if check.blocked() {
+        eprintln!(
+            "Fix the commits (git commit --amend, or git rebase -i for older ones), then push again."
+        );
+        eprintln!("To push anyway: git push --no-verify");
+        return Ok(ExitCode::from(1));
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn hook(action: Option<&str>, rest: &[String], all: bool) -> Result<ExitCode, String> {
+    use sangraha_core::hooks;
+    let cfg = Config::load();
+    let paths: Vec<PathBuf> = if all {
+        sangraha_core::local::find(&cfg.roots)
+    } else {
+        rest.iter()
+            .filter(|a| !a.starts_with("--"))
+            .map(|p| std::fs::canonicalize(p).unwrap_or_else(|_| PathBuf::from(p)))
+            .collect()
+    };
+    match action {
+        Some("status") => {
+            for h in sangraha_core::security::hook_rows(&cfg.roots) {
+                let state = match h.state {
+                    hooks::HookState::Sangraha => "leak check",
+                    hooks::HookState::Other => "other hook",
+                    hooks::HookState::Shared => "shared hooks",
+                    hooks::HookState::None => "none",
+                };
+                out!("{state:13} {}", h.path.display());
+            }
+            Ok(ExitCode::SUCCESS)
+        }
+        Some(a @ ("install" | "remove")) => {
+            if paths.is_empty() {
+                return Err(format!("name the clones, or --all: sangraha hook {a} PATH"));
+            }
+            let cli = hooks::cli_path().ok_or("cannot find the sangraha program itself")?;
+            let mut failed = false;
+            for p in paths {
+                let r = if a == "install" {
+                    hooks::install(&p, &cli)
+                } else {
+                    hooks::remove(&p)
+                };
+                match r {
+                    Ok(m) => println!("{m}"),
+                    Err(e) => {
+                        failed = true;
+                        eprintln!("{e}");
+                    }
+                }
+            }
+            Ok(if failed {
+                ExitCode::from(1)
+            } else {
+                ExitCode::SUCCESS
+            })
+        }
+        _ => Err(
+            "try: sangraha hook install PATH, sangraha hook remove PATH, sangraha hook status"
+                .into(),
+        ),
+    }
+}
+
+fn gate(path: Option<PathBuf>) -> Result<ExitCode, String> {
+    let repo = path.unwrap_or_else(|| PathBuf::from("."));
+    let url = std::process::Command::new("git")
+        .arg("-C")
+        .arg(&repo)
+        .args(["config", "--get", "remote.origin.url"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+        .unwrap_or_default();
+    let full = sangraha_core::local::github_name(&url);
+    let g = sangraha_core::security::gate(full.as_deref(), Some(&repo));
+    for w in &g.warnings {
+        eprintln!("note: {w}");
+    }
+    if g.blocked {
+        for r in &g.reasons {
+            eprintln!("Not yet: {r}");
+        }
+        return Ok(ExitCode::from(1));
+    }
+    println!(
+        "Clear to release{}.",
+        full.map(|f| format!(" {f}")).unwrap_or_default()
+    );
     Ok(ExitCode::SUCCESS)
 }
