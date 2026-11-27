@@ -8,12 +8,25 @@ const inTauri = '__TAURI_INTERNALS__' in window
 
 async function demo<T>(cmd: string): Promise<T> {
   if (cmd === 'board' || cmd === 'refresh' || cmd.endsWith('_board') || cmd.endsWith('_refresh')) {
-    const file = cmd.startsWith('apps') ? 'apps' : cmd.startsWith('security') ? 'security' : 'board'
+    const file = cmd.startsWith('apps') ? 'apps' : cmd.startsWith('security') ? 'security' : cmd.startsWith('releases') ? 'releases' : 'board'
     const b = (await (await fetch(`/demo/${file}.json`)).json()) as { checkedAt: number | null }
     b.checkedAt = Math.floor(Date.now() / 1000) - 180
     return b as T
   }
-  if (cmd === 'set_hook') return 'Demo: nothing was changed' as T
+  if (cmd === 'set_hook' || cmd === 'subtree_pull') return 'Demo: nothing was changed' as T
+  if (cmd === 'changelog')
+    return '## 0.4.0\n\n### Added\n\n- Export to CSV (a1b2c3d)\n- Dark theme follows the system (b2c3d4e)\n\n### Fixed\n\n- Crash when the list is empty (#41) (c3d4e5f)\n' as T
+  if (cmd === 'release_details')
+    return {
+      releaseUrl: 'https://github.com/you/harbor-notes/releases/tag/v0.3.2',
+      prerelease: false,
+      assets: [
+        { name: 'harbor-notes-0.3.2-linux-x64.tar.gz', size: 9_437_184, downloads: 41 },
+        { name: 'harbor-notes-0.3.2-windows-x64.zip', size: 8_912_896, downloads: 63 },
+        { name: 'SHA256SUMS.txt', size: 212, downloads: 12 },
+      ],
+      runs: [{ name: 'Release', status: 'completed', conclusion: 'success', url: 'https://github.com/you/harbor-notes/actions' }],
+    } as T
   if (cmd === 'bulk_plan' || cmd === 'bulk_apply') {
     const p = (await (await fetch('/demo/bulk.json')).json()) as BulkPlan
     if (cmd === 'bulk_apply') p.applied = true
@@ -206,6 +219,55 @@ export interface BulkPlan {
   applied: boolean
 }
 
+export type Verdict = 'disagree' | 'needsBump' | 'ready' | 'noTag' | 'noVersion' | 'noChanges'
+
+export interface ReleaseRow {
+  repo: string
+  path: string
+  branch: string | null
+  tag: string | null
+  tagDate: string | null
+  tagSha: string | null
+  since: number
+  pullRequests: number
+  versions: { path: string; version: string }[]
+  version: string | null
+  verdict: Verdict
+  note: string
+  release: Release | null
+  unreleasedTag: boolean
+}
+
+export interface Subtree {
+  host: string
+  path: string
+  dir: string
+  pulled: string
+  pulledAt: string | null
+  squash: boolean
+  source: string | null
+  branch: string
+  behind: number | null
+  state: 'current' | 'behind' | 'unknown'
+  note: string | null
+  edits: string[]
+}
+
+export interface ReleaseBoard {
+  rows: ReleaseRow[]
+  subtrees: Subtree[]
+  counts: { ready: number; needsBump: number; disagree: number; unreleased: number; drift: number }
+  checkedAt: number | null
+  warnings: string[]
+}
+
+export interface ReleaseDetails {
+  releaseUrl: string | null
+  prerelease: boolean
+  assets: { name: string; size: number; downloads: number }[]
+  runs: { name: string; status: string; conclusion: string | null; url: string }[]
+}
+
 export type Severity = 'low' | 'moderate' | 'high' | 'critical'
 export type Scope = 'runtime' | 'development' | 'unknown'
 
@@ -361,6 +423,11 @@ export const api = {
   setHook: (path: string, on: boolean) => invoke<string>('set_hook', { path, on }),
   saveLeakSettings: (s: { termsFile: string; allowedEmails: string[]; requireSigned: boolean }) =>
     invoke<Config>('save_leak_settings', s),
+  releasesBoard: () => invoke<ReleaseBoard>('releases_board'),
+  releasesRefresh: () => invoke<ReleaseBoard>('releases_refresh'),
+  releaseDetails: (repo: string, tag: string, sha: string) => invoke<ReleaseDetails>('release_details', { repo, tag, sha }),
+  changelog: (path: string) => invoke<string>('changelog', { path }),
+  subtreePull: (path: string, dir: string) => invoke<string>('subtree_pull', { path, dir }),
   bulkPlan: (req: BulkRequest) => invoke<BulkPlan>('bulk_plan', { req }),
   bulkApply: (req: BulkRequest) => invoke<BulkPlan>('bulk_apply', { req }),
 }

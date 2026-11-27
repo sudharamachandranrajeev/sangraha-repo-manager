@@ -14,11 +14,14 @@ pub mod hooks;
 pub mod install;
 pub mod leaks;
 pub mod local;
+pub mod releases;
 pub mod security;
+pub mod subtrees;
 
 pub use apps::{AppRow, AppStatus, AppsBoard};
 pub use board::{Board, Counts, Level, Problem, ProblemKind, Row, build};
 pub use config::Config;
+pub use releases::ReleaseBoard;
 pub use security::{Gate, SecurityBoard};
 
 #[derive(Debug, thiserror::Error)]
@@ -215,6 +218,98 @@ pub fn security_refresh(cfg: &Config) -> Result<SecurityBoard> {
         Some(&snap),
         security::hook_rows(&cfg.roots),
     ))
+}
+
+fn renames_known(cache: &cache::Cache) -> std::collections::HashMap<String, String> {
+    cache.renames().unwrap_or_default()
+}
+
+fn releases_assemble(
+    cfg: &Config,
+    cache: &cache::Cache,
+    snap: Option<&github::Snapshot>,
+) -> ReleaseBoard {
+    let clones = local::scan(&cfg.roots);
+    let rows = releases::rows(&clones, snap);
+    let mut subtrees = subtrees::find(&clones, snap, &renames_known(cache));
+    let drift = cache.drift().ok().flatten();
+    if let Some(d) = &drift {
+        subtrees::apply(&mut subtrees, d);
+    }
+    ReleaseBoard {
+        counts: releases::count(&rows, &subtrees),
+        rows,
+        subtrees,
+        checked_at: drift.map(|d| d.checked_at),
+        warnings: Vec::new(),
+    }
+}
+
+/// The Releases tab from the clones, with what GitHub said last about the subtrees. No network.
+pub fn releases_load(cfg: &Config) -> Result<ReleaseBoard> {
+    let cache = cache::Cache::open_default()?;
+    let snap = cache.snapshot()?;
+    Ok(releases_assemble(cfg, &cache, snap.as_ref()))
+}
+
+/// Asks GitHub how far each subtree's source has moved on (following renamed sources).
+pub fn releases_refresh(cfg: &Config) -> Result<ReleaseBoard> {
+    let token = github::token()?;
+    let cache = cache::Cache::open_default()?;
+    let snap = cache.snapshot()?;
+    let clones = local::scan(&cfg.roots);
+    let mut renames = renames_known(&cache);
+    let known: std::collections::HashSet<String> = snap
+        .iter()
+        .flat_map(|s| &s.repos)
+        .map(|r| r.full_name.to_lowercase())
+        .collect();
+    let mut changed = false;
+    for sub in subtrees::find(&clones, snap.as_ref(), &renames) {
+        let Some(src) = sub.source.map(|s| s.to_lowercase()) else {
+            continue;
+        };
+        if known.contains(&src) || renames.contains_key(&src) || !apps::valid_name(&src) {
+            continue;
+        }
+        let now_called = github::current_name(&token, &src)?.unwrap_or_default();
+        renames.insert(
+            src.clone(),
+            if now_called.to_lowercase() == src {
+                String::new()
+            } else {
+                now_called
+            },
+        );
+        changed = true;
+    }
+    if changed {
+        cache.set_renames(&renames)?;
+    }
+    let subs = subtrees::find(&clones, snap.as_ref(), &renames);
+    cache.set_drift(&subtrees::compare(&token, &subs)?)?;
+    Ok(releases_assemble(cfg, &cache, snap.as_ref()))
+}
+
+/// The GitHub release for a tag and the workflow runs on its commit.
+pub fn release_details(repo: &str, tag: &str, sha: &str) -> Result<releases::Details> {
+    releases::details(&github::token()?, repo, tag, sha)
+}
+
+/// Runs `git subtree pull` for the copy in `dir` of the clone at `path`, if Sangraha found
+/// one there.
+pub fn subtree_pull(cfg: &Config, path: &std::path::Path, dir: &str) -> Result<String> {
+    let cache = cache::Cache::open_default()?;
+    let snap = cache.snapshot()?;
+    let clones: Vec<_> = local::scan(&cfg.roots)
+        .into_iter()
+        .filter(|c| c.path == path)
+        .collect();
+    let sub = subtrees::find(&clones, snap.as_ref(), &renames_known(&cache))
+        .into_iter()
+        .find(|s| s.dir == dir)
+        .ok_or_else(|| Error::Git(format!("No subtree {dir} in {}", path.display())))?;
+    subtrees::pull(&sub)
 }
 
 /// What the `pre-push` hook decides: the leak check over the commits being pushed, and for a

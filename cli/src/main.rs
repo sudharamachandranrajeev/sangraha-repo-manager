@@ -22,6 +22,9 @@ Usage:
   sangraha hook install|remove [PATH... | --all] | sangraha hook status
   sangraha gate [PATH]
   sangraha bulk --repos all|public|OWNER/NAME,... CHANGES... [--pr] [--apply]
+  sangraha releases [--json] [--offline]
+  sangraha changelog [PATH]
+  sangraha subtree pull PATH DIR
 
 status    What needs attention. Reads GitHub through your gh login (gh auth login).
   --all       every repository, not only those that need attention
@@ -63,6 +66,14 @@ bulk      One change to many repositories. Shows what would change (a dry run) u
   --replace           replace files that exist and differ (otherwise they are left)
   --pr                files through a pull request, not a commit on the default branch
   --message TEXT      commit message and pull request title
+
+releases  Each clone since its last tag: commits, whether the version files are ahead of
+          the tag (ready to tag) or still need raising, and tags with no GitHub release.
+          Then copies made with git subtree, and how far their sources have moved on
+          (--offline uses GitHub's last answer).
+changelog A draft changelog from the commits since the last tag (default: this folder).
+subtree   pull PATH DIR: git subtree pull for the copy in DIR of the clone at PATH, from
+          the source Sangraha found for it.
 ";
 
 fn main() -> ExitCode {
@@ -96,6 +107,12 @@ fn main() -> ExitCode {
         Some("hook") => hook(args.get(1).map(String::as_str), &args[2..], flag("--all")),
         Some("gate") => gate(args.get(1).map(PathBuf::from)),
         Some("bulk") => bulk(&args[1..]),
+        Some("releases") => releases(flag("--json"), flag("--offline")),
+        Some("changelog") => changelog(args.get(1).map(PathBuf::from)),
+        Some("subtree") => match (args.get(1).map(String::as_str), args.get(2), args.get(3)) {
+            (Some("pull"), Some(path), Some(dir)) => subtree_pull(path, dir),
+            _ => Err("usage: sangraha subtree pull PATH DIR".into()),
+        },
         Some("-V" | "--version") => {
             println!("sangraha {}", env!("CARGO_PKG_VERSION"));
             Ok(ExitCode::SUCCESS)
@@ -827,4 +844,107 @@ fn bulk(args: &[String]) -> Result<ExitCode, String> {
         );
         Ok(ExitCode::SUCCESS)
     }
+}
+
+fn releases(json: bool, offline: bool) -> Result<ExitCode, String> {
+    use sangraha_core::releases::Verdict;
+    use sangraha_core::subtrees::SubtreeState;
+    let cfg = Config::load();
+    let b = if offline {
+        sangraha_core::releases_load(&cfg)
+    } else {
+        sangraha_core::releases_refresh(&cfg)
+    }
+    .map_err(|e| e.to_string())?;
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&b).map_err(|e| e.to_string())?
+        );
+        return Ok(ExitCode::SUCCESS);
+    }
+    let c = &b.counts;
+    out!(
+        "{} ready to tag · {} need a version raised · {} with versions that disagree · {} tags not released · {} copies behind or edited",
+        c.ready,
+        c.needs_bump,
+        c.disagree,
+        c.unreleased,
+        c.drift
+    );
+    out!("");
+    for r in b
+        .rows
+        .iter()
+        .filter(|r| r.verdict != Verdict::NoChanges && r.verdict != Verdict::NoVersion)
+    {
+        let mark = match r.verdict {
+            Verdict::Ready => "ready",
+            Verdict::NeedsBump => "raise",
+            Verdict::Disagree => "differ",
+            _ => "",
+        };
+        out!(
+            "{mark:7}{:32} {}{}",
+            short(&r.repo),
+            r.note,
+            if r.unreleased_tag {
+                " · tag not released on GitHub"
+            } else {
+                ""
+            }
+        );
+    }
+    let quiet = b
+        .rows
+        .iter()
+        .filter(|r| matches!(r.verdict, Verdict::NoChanges | Verdict::NoVersion))
+        .count();
+    if quiet > 0 {
+        out!("       ({quiet} more with nothing since their last tag, or no version file)");
+    }
+    if !b.subtrees.is_empty() {
+        out!("");
+        out!("Copies made with git subtree:");
+    }
+    for s in &b.subtrees {
+        let state = match (s.state, s.behind) {
+            (SubtreeState::Current, _) => "up to date".to_owned(),
+            (SubtreeState::Behind, Some(n)) => format!("{n} commits behind"),
+            _ => "not compared".to_owned(),
+        };
+        out!(
+            "  {}/{} from {} {}: {state}{}",
+            short(&s.host),
+            s.dir,
+            s.source.as_deref().unwrap_or("?"),
+            s.branch,
+            if s.edits.is_empty() {
+                String::new()
+            } else {
+                format!(" · {} commits made to the copy here", s.edits.len())
+            }
+        );
+        if let Some(n) = &s.note {
+            out!("    {n}");
+        }
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn changelog(path: Option<PathBuf>) -> Result<ExitCode, String> {
+    let path = path.unwrap_or_else(|| PathBuf::from("."));
+    out!(
+        "{}",
+        sangraha_core::releases::changelog_for(&path).map_err(|e| e.to_string())?
+    );
+    Ok(ExitCode::SUCCESS)
+}
+
+fn subtree_pull(path: &str, dir: &str) -> Result<ExitCode, String> {
+    let path = std::fs::canonicalize(path).map_err(|e| format!("{path}: {e}"))?;
+    let text = sangraha_core::subtree_pull(&Config::load(), &path, dir.trim_end_matches('/'))
+        .map_err(|e| e.to_string())?;
+    out!("{text}");
+    Ok(ExitCode::SUCCESS)
 }

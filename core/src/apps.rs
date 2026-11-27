@@ -409,11 +409,10 @@ pub fn app_id(display: &str) -> String {
 
 /// `v1.2.3-beta.4` → numbers `[1,2,3]` and pre-release parts `["beta", "4"]`.
 fn parse_version(v: &str) -> Option<(Vec<u64>, Vec<String>)> {
+    // Build metadata (`+7` in `1.2.3+7`) does not order versions.
     let v = v.trim().trim_start_matches(['v', 'V']);
-    let (core, pre) = match v.split_once(['-', '+']) {
-        Some((c, p)) => (c, p.split('+').next().unwrap_or(p)),
-        None => (v, ""),
-    };
+    let v = v.split('+').next().unwrap_or(v);
+    let (core, pre) = v.split_once('-').unwrap_or((v, ""));
     let nums = core
         .split('.')
         .map(|n| n.parse().ok())
@@ -932,6 +931,8 @@ mod tests {
         assert_eq!(compare("0.1.0", "0.1.0-rc.1"), Some(Greater));
         assert_eq!(compare("1.0", "1.0.0"), Some(Equal));
         assert_eq!(compare("0.10.0", "0.9.9"), Some(Greater));
+        assert_eq!(compare("0.5.1+7", "v0.5.1"), Some(Equal));
+        assert_eq!(compare("1.0.0-beta.2+exp", "1.0.0-beta.2"), Some(Equal));
         assert_eq!(compare("themes-2026.11.01-4", "1.0"), None);
         assert!(same_version("themes-2026.11.01-4", "themes-2026.11.01-4"));
     }

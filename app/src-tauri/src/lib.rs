@@ -310,6 +310,53 @@ async fn security_refresh() -> Result<SecurityBoard, String> {
     blocking(|| sangraha_core::security_refresh(&Config::load()).map_err(|e| e.to_string())).await
 }
 
+#[tauri::command]
+async fn releases_board() -> Result<sangraha_core::ReleaseBoard, String> {
+    blocking(|| sangraha_core::releases_load(&Config::load()).map_err(|e| e.to_string())).await
+}
+
+#[tauri::command]
+async fn releases_refresh() -> Result<sangraha_core::ReleaseBoard, String> {
+    blocking(|| sangraha_core::releases_refresh(&Config::load()).map_err(|e| e.to_string())).await
+}
+
+/// The GitHub release for a tag, and the workflow runs on its commit.
+#[tauri::command]
+async fn release_details(
+    repo: String,
+    tag: String,
+    sha: String,
+) -> Result<sangraha_core::releases::Details, String> {
+    blocking(move || sangraha_core::release_details(&repo, &tag, &sha).map_err(|e| e.to_string()))
+        .await
+}
+
+/// A draft changelog since the last tag, for a clone Sangraha lists.
+#[tauri::command]
+async fn changelog(path: String) -> Result<String, String> {
+    blocking(move || {
+        let path = PathBuf::from(path);
+        if !sangraha_core::local::find(&Config::load().roots).contains(&path) {
+            return Err(format!(
+                "{} is not one of the clones Sangraha lists",
+                path.display()
+            ));
+        }
+        sangraha_core::releases::changelog_for(&path).map_err(|e| e.to_string())
+    })
+    .await
+}
+
+/// `git subtree pull` for a copy Sangraha found (only in the clones it lists).
+#[tauri::command]
+async fn subtree_pull(path: String, dir: String) -> Result<String, String> {
+    blocking(move || {
+        sangraha_core::subtree_pull(&Config::load(), &PathBuf::from(path), &dir)
+            .map_err(|e| e.to_string())
+    })
+    .await
+}
+
 /// Installs or removes the leak check hook in one clone. Only clones Sangraha found under the
 /// configured folders are touched.
 #[tauri::command]
@@ -413,6 +460,11 @@ pub fn run() {
             save_apps_settings,
             security_board,
             security_refresh,
+            releases_board,
+            releases_refresh,
+            release_details,
+            changelog,
+            subtree_pull,
             set_hook,
             save_leak_settings,
             bulk_plan,

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { api, onInstallProgress, type AppRow, type AppsBoard, type InstallFailure } from './api'
-  import { ago, plural, shortDate } from './format'
+  import { ago, plural, shortDate, size } from './format'
   import Menu, { type MenuItem } from './Menu.svelte'
 
   let {
@@ -101,9 +101,6 @@
     }
   }
 
-  function size(bytes: number): string {
-    return bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(bytes / 1e6))} MB`
-  }
 
   /** Installs one app. Returns false when it did not install. */
   async function install(row: AppRow, allowUnverified = false): Promise<boolean> {

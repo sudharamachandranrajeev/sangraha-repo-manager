@@ -70,6 +70,15 @@ impl Cache {
         self.put("security", s)
     }
 
+    /// GitHub's last word on how far each subtree's source has moved on.
+    pub fn drift(&self) -> Result<Option<crate::subtrees::DriftSnapshot>> {
+        self.get("drift")
+    }
+
+    pub fn set_drift(&self, s: &crate::subtrees::DriftSnapshot) -> Result<()> {
+        self.put("drift", s)
+    }
+
     /// Old `owner/name` (lower case) → current `owner/name`; an empty value means "checked, gone".
     pub fn renames(&self) -> Result<HashMap<String, String>> {
         Ok(self.get("renames")?.unwrap_or_default())

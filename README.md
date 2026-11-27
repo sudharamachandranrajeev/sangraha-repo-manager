@@ -80,6 +80,13 @@ changes your files. There is no download yet; build it from source (below).
   for each repository, or a copy of a file such as `LICENSE`) everywhere at once. **Preview**
   lists what would change in each repository before anything does. Files go in as a pull
   request or a commit, under your private GitHub email.
+- 🏷️ **What is waiting for a release** – the Releases tab shows each clone's commits since
+  its last tag, and whether the version files (`Cargo.toml`, `package.json`, `pubspec.yaml`,
+  `tauri.conf.json`) were raised yet, or disagree. Open a row for a draft changelog and the
+  release's files and build run on GitHub.
+- 🌿 **Copies inside other repositories** – folders added with `git subtree` show how many
+  commits their source has that the copy lacks, and any commits made to the copy here.
+  **Pull** brings the copy up to date.
 - ⌨️ **Command line too** – `sangraha status`, `sangraha apps` and `sangraha security` print the
   same boards in a terminal.
 
@@ -105,6 +112,12 @@ changes your files. There is no download yet; build it from source (below).
   </tr>
   <tr>
     <td colspan="2" align="center">Bulk changes, from the Repos tab</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/releases-dark.png" alt="The Releases tab: repositories with commits since their last tag, then subtree copies and how far behind they are"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">Releases tab</td>
   </tr>
 </table>
 
@@ -155,6 +168,9 @@ sangraha hook install --all  # the leak check in every clone
 sangraha gate              # may this clone's next release go out?
 sangraha bulk --repos public --set secret-scanning=on --dependabot --pr  # dry run
 sangraha bulk ... --apply  # the same, for real
+sangraha releases          # what waits for a release; subtree copies behind
+sangraha changelog         # a draft changelog since the last tag
+sangraha subtree pull ~/Work/suite apps/notes
 ```
 
 </details>
@@ -200,10 +216,11 @@ Sangraha lists repositories you own. A clone of someone else's repository shows 
 <details>
 <summary>Does it change anything in my repositories?</summary>
 
-Not your files or your history. It runs read-only `git` commands, plus `git fetch` when you
-press **Fetch all**. The one thing it writes into a clone is the leak check hook in
-`.git/hooks`, and only when you press **Add**. Other buttons open GitHub, a file manager or a
-terminal; what happens next is up to you.
+Only when you press a button for it. Otherwise it runs read-only `git` commands, plus
+`git fetch` when you press **Fetch all**. **Add** puts the leak check hook in `.git/hooks`, and
+**Pull** on the Releases tab merges a subtree copy's new commits (a merge commit in your clone,
+not pushed). Other buttons open GitHub, a file manager or a terminal; what happens next is up
+to you.
 
 On GitHub, only **Bulk changes** writes, and only after you press **Preview** and then
 **Apply**. It reads each repository again first and changes only what still differs.
@@ -258,6 +275,25 @@ tab says so.
 </details>
 
 <details>
+<summary>The Releases tab says "Raise version". What is wrong?</summary>
+
+Commits went in after the last tag, but the version files still say the tag's version. A
+release made now would carry the old number. Raise the version in the files first, then tag.
+In a repository with several packages, Sangraha compares the files in the main package's
+folder, and a Tauri app's `package.json`, `tauri.conf.json` and `Cargo.toml`; other packages
+keep their own versions.
+</details>
+
+<details>
+<summary>Where does a subtree copy come from?</summary>
+
+From the remote named like its folder (`apps/notes` and a remote called `notes`), else from
+the repository the commit message names ("Update apps/notes from notes-app main"), else from
+the repository with the folder's name. Renamed repositories are followed. **Pull** runs
+`git subtree pull` in your clone and makes a merge commit there; it pushes nothing.
+</details>
+
+<details>
 <summary>What does "Local only" mean?</summary>
 
 The folder is a git repository with no remote, or its remote is not on GitHub. Its commits
@@ -270,7 +306,7 @@ exist on this computer only.
 <summary>Build, test and screenshots</summary>
 
 - `core/` – the boards: GitHub, clones, cache, app installs (`apps.rs`, `install.rs`), and
-  security (`security.rs`, `leaks.rs`, `hooks.rs`), bulk changes (`bulk.rs`). `cli/` – the `sangraha` command. `app/` – the
+  security (`security.rs`, `leaks.rs`, `hooks.rs`), bulk changes (`bulk.rs`), releases and subtrees (`releases.rs`, `subtrees.rs`). `cli/` – the `sangraha` command. `app/` – the
   window (Tauri 2, Svelte 5).
 - Checks: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace`, and in `app/`, `npm run check`.

@@ -4,13 +4,14 @@
   import type { Row } from './lib/api'
   import Repos from './lib/Repos.svelte'
   import Security from './lib/Security.svelte'
+  import Releases from './lib/Releases.svelte'
   import Settings from './lib/Settings.svelte'
 
-  type Tab = 'repos' | 'apps' | 'security'
+  type Tab = 'repos' | 'apps' | 'security' | 'releases'
   type View = 'table' | 'grid'
 
   const saved = localStorage.getItem('tab')
-  let tab = $state<Tab>(saved === 'apps' || saved === 'security' ? saved : 'repos')
+  let tab = $state<Tab>(saved === 'apps' || saved === 'security' || saved === 'releases' ? saved : 'repos')
   // Repos read best as a table, apps as cards; each tab keeps its own choice.
   let views = $state<Record<'repos' | 'apps', View>>({
     repos: localStorage.getItem('view') === 'grid' ? 'grid' : 'table',
@@ -19,14 +20,16 @@
   let repoBusy = $state<'' | 'refresh' | 'fetch'>('')
   let appBusy = $state<'' | 'refresh'>('')
   let secBusy = $state<'' | 'refresh'>('')
+  let relBusy = $state<'' | 'refresh'>('')
   let showSettings = $state(false)
   let bulkRows = $state<Row[] | null>(null)
   let repos = $state<Repos>()
   let apps = $state<Apps>()
   let security = $state<Security>()
+  let releases = $state<Releases>()
 
-  const busy = $derived(tab === 'repos' ? repoBusy : tab === 'apps' ? appBusy : secBusy)
-  const pane = $derived(tab === 'repos' ? repos : tab === 'apps' ? apps : security)
+  const busy = $derived(tab === 'repos' ? repoBusy : tab === 'apps' ? appBusy : tab === 'security' ? secBusy : relBusy)
+  const pane = $derived(tab === 'repos' ? repos : tab === 'apps' ? apps : tab === 'security' ? security : releases)
 
   function refresh() {
     pane?.refresh()
@@ -40,8 +43,8 @@
       pane?.focusSearch()
     } else if (e.key === 'r') {
       refresh()
-    } else if (e.key === '1' || e.key === '2' || e.key === '3') {
-      tab = (['repos', 'apps', 'security'] as const)[Number(e.key) - 1]
+    } else if (['1', '2', '3', '4'].includes(e.key)) {
+      tab = (['repos', 'apps', 'security', 'releases'] as const)[Number(e.key) - 1]
     }
   }
 
@@ -64,9 +67,10 @@
       <button class="tab" class:on={tab === 'repos'} aria-current={tab === 'repos' ? 'page' : undefined} onclick={() => (tab = 'repos')}>Repos</button>
       <button class="tab" class:on={tab === 'apps'} aria-current={tab === 'apps' ? 'page' : undefined} onclick={() => (tab = 'apps')}>Apps</button>
       <button class="tab" class:on={tab === 'security'} aria-current={tab === 'security' ? 'page' : undefined} onclick={() => (tab = 'security')}>Security</button>
+      <button class="tab" class:on={tab === 'releases'} aria-current={tab === 'releases' ? 'page' : undefined} onclick={() => (tab = 'releases')}>Releases</button>
     </nav>
     <div class="spacer"></div>
-    {#if tab !== 'security'}
+    {#if tab === 'repos' || tab === 'apps'}
       {@const t = tab}
       <div class="seg caps" role="group" aria-label="View">
         <button class:on={views[t] === 'table'} aria-pressed={views[t] === 'table'} onclick={() => (views[t] = 'table')}>Table</button>
@@ -89,7 +93,7 @@
       ></button>
   </header>
 
-  <!-- Both tabs stay mounted, so switching keeps filters, search and running installs. -->
+  <!-- The tabs stay mounted, so switching keeps filters, search and running installs. -->
   <div class="pane" hidden={tab !== 'repos'}>
     <Repos bind:this={repos} view={views.repos} bind:busy={repoBusy} />
   </div>
@@ -98,6 +102,9 @@
   </div>
   <div class="pane" hidden={tab !== 'security'}>
     <Security bind:this={security} active={tab === 'security'} bind:busy={secBusy} />
+  </div>
+  <div class="pane" hidden={tab !== 'releases'}>
+    <Releases bind:this={releases} active={tab === 'releases'} bind:busy={relBusy} />
   </div>
 </div>
 
@@ -112,6 +119,7 @@
       repos?.load()
       apps?.load()
       security?.load()
+      releases?.load()
     }}
   />
 {/if}
