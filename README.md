@@ -1,33 +1,355 @@
 <div align="center">
+  <img src="app/public/favicon.svg" width="140" alt="Sangraha logo">
+  <h1>Sangraha</h1>
+  <h4>Your GitHub repositories, the apps you publish and their security, on one board: what needs you first.</h4>
 
-# Sangraha
+  <p>
+    <img src="https://img.shields.io/badge/status-alpha-orange" alt="Status: alpha">
+    <img src="https://img.shields.io/badge/platforms-Linux%20%7C%20Windows-blue" alt="Platforms: Linux and Windows">
+    <img src="https://img.shields.io/badge/licence-MIT-green" alt="Licence: MIT">
+  </p>
 
-#### One place to look after all your GitHub repositories: health, security, releases and chores.
+  <p>
+    <a href="#-what-it-does">What it does</a> •
+    <a href="#-get-started">Get started</a> •
+    <a href="#-how-it-works">How it works</a> •
+    <a href="#-faq">FAQ</a> •
+    <a href="#-for-developers">For developers</a>
+  </p>
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-![Status: planning](https://img.shields.io/badge/status-planning-lightgrey.svg)
-
-[What it will do](#-what-it-will-do) • [Status](#-status) • [License](#license)
-
+  <img src="docs/screenshots/board-dark.png" width="900" alt="The Sangraha board: a table of repositories with failing checks, security alerts and unpushed work at the top">
 </div>
 
-Sangraha ("collection" in Sanskrit) is a repository manager for people who keep many
-repositories at once. It shows every repository on one board and points out what needs
-attention. It is at the planning stage: there is nothing to install yet.
+Sangraha ("collection" in Sanskrit) is for people who keep many repositories at once. It has
+three tabs:
 
-## ✨ What it will do
+- **Repos** reads GitHub and the clones on your computer together and answers *what needs me
+  today?* Failing checks, security alerts, commits that never reached GitHub and forgotten
+  changes show worst first, each with one button that takes you there.
+- **Apps** lists the apps your repositories publish as GitHub releases (and any other
+  repository you follow), shows which are installed here and which have an update, and
+  installs them for you, checked and with an undo.
+- **Security** groups open security alerts across all your repositories by package, so one
+  upgrade closes many, and adds a leak check that reads every push before it leaves.
 
-- 📋 **One board** – every repository you own, with its last release, open issues and checks.
-- 🛡️ **Security at a glance** – open security alerts across all repositories, worst first.
-- 🔁 **Bulk changes** – apply the same settings or file to many repositories in one step, with a preview.
-- 🚀 **Release help** – see what changed since the last release and what blocks the next one.
-- 🧹 **Tidy-up** – find stale branches, old forks and repositories nobody has touched.
+Sangraha is **alpha** software. On the Repos tab it only reads: it never commits, pushes or
+changes your files. There is no download yet; build it from source (below).
 
-The full list will come from what users of existing tools ask for most.
+## ✨ What it does
 
-## 🧭 Status
+- 🚦 **Worst first** – a red check or a serious security alert sits above a stray file. Each
+  row has one status and one button for the next step (**Open checks**, **Open alerts**,
+  **Open terminal**).
+- 💻 **GitHub and your computer together** – each repository shows its clones: branch, commits
+  ahead or behind, changed files, stashes. Two clones of one repository show as one row.
+- 📤 **Unpushed work** – commits on any branch that are not on GitHub, and folders with no
+  remote at all, so nothing lives on one laptop only.
+- 🛡️ **Security alerts** – open alerts per repository (Dependabot), with how many are high or
+  critical.
+- 🏷️ **Latest release, pre-releases included** – GitHub's "latest release" skips
+  pre-releases; Sangraha shows the newest one either way.
+- 🔎 **Filters with counts** – *Needs attention*, *Unpushed*, *Checks failing*, *Alerts*,
+  *Not cloned*, *Local only*. Search with <kbd>/</kbd>, refresh with <kbd>R</kbd>.
+- 🔁 **Renamed repositories** – a clone whose remote still uses an old name is matched to the
+  new one, and the row says so.
+- 🙈 **Hide what you do not care about** – hidden rows stay one click away under *Hidden*.
+- 📦 **Your apps, installed and current** – the Apps tab finds the right file for this computer
+  in each release (pre-releases included), and shows the version here next to the one on
+  GitHub. It also finds copies you installed by hand.
+- 🔐 **Checked downloads** – every file is checked against the SHA-256 (a fingerprint) that
+  GitHub or the release publishes. A file without one is installed only if you say so.
+- ↩️ **Roll back** – an update keeps the version it replaced, one click away. An app that is
+  running is never replaced.
+- 🧑 **No admin password** – apps go in a folder of your own (`~/Applications`, or
+  `%LOCALAPPDATA%\Programs` on Windows) with a menu entry. **Update all** shows the list and
+  the download size first.
+- ⏳ **Wait a few days if you like** – an optional delay before an update is offered, so a
+  broken release can be fixed before it reaches you.
+- 🧯 **Security alerts by package** – Dependabot alerts from every repository in one list,
+  grouped by package, worst first, with the version that fixes them all. *Shipped* packages
+  (in what people install) are kept apart from *build only* ones. Secret and code scanning
+  alerts sit below.
+- 🚧 **Leak check before every push** – a git hook stops a push that would publish a private
+  email, a path into your home folder, a word from your private list, or anything that
+  looks like a password or token (with [gitleaks](https://github.com/gitleaks/gitleaks) too,
+  if installed). One button adds it to every clone; a hook already there keeps running.
+- 🏁 **Release gate** – pushing a tag is stopped while shipped dependencies have open high or
+  critical alerts on GitHub, or `npm audit` finds some.
+- 🧰 **One change, many repositories** – turn on secret scanning, Dependabot updates or *delete
+  branch after merge*, add or remove topics, or add the same file (a Dependabot config made
+  for each repository, or a copy of a file such as `LICENSE`) everywhere at once. **Preview**
+  lists what would change in each repository before anything does. Files go in as a pull
+  request or a commit, under your private GitHub email.
+- 🏷️ **What is waiting for a release** – the Releases tab shows each clone's commits since
+  its last tag, and whether the version files (`Cargo.toml`, `package.json`, `pubspec.yaml`,
+  `tauri.conf.json`) were raised yet, or disagree. Open a row for a draft changelog and the
+  release's files and build run on GitHub.
+- 🌿 **Copies inside other repositories** – folders added with `git subtree` show how many
+  commits their source has that the copy lacks, and any commits made to the copy here.
+  **Pull** brings the copy up to date.
+- 🧹 **Housekeeping** – branches merged through a pull request (with **Delete merged**, which
+  keeps any branch pushed to since), branches quiet for 90 days, public repositories without
+  a licence, repositories without a README or CI, old workflow runs, and files of 20 MB or more
+  in your clones.
+- 📰 **Daily digest** – one summary of every tab, marking what is new since yesterday, as a
+  desktop notification at a time you choose. It can also go to a command of yours as JSON,
+  for a reminder app, an agent or a mail script.
+- 📥 **Tray** – if you want, Sangraha stays in the system tray when its window closes, reads
+  GitHub every 6 hours and tells you when something new needs you.
+- ⌨️ **Command line too** – `sangraha status`, `sangraha apps` and `sangraha security` print the
+  same boards in a terminal.
 
-Planning. The first build is next.
+## 📸 Screenshots
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/board-light.png" alt="The board in the light theme"></td>
+    <td><img src="docs/screenshots/apps-dark.png" alt="The Apps tab: one card per app, with updates first"></td>
+  </tr>
+  <tr>
+    <td align="center">Repos tab, light theme</td>
+    <td align="center">Apps tab, dark theme</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/security-dark.png" alt="The Security tab: alerts grouped by package, then secret and code scanning, then the leak check per clone"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">Security tab, dark theme</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/bulk-dark.png" alt="Bulk changes: repositories on the left, settings, topics and files on the right"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">Bulk changes, from the Repos tab</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/releases-dark.png" alt="The Releases tab: repositories with commits since their last tag, then subtree copies and how far behind they are"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">Releases tab</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/housekeeping-dark.png" alt="The Housekeeping tab: merged and stale branches, missing README, licence or CI, old workflow runs and large files per repository"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">Housekeeping tab</td>
+  </tr>
+</table>
+
+The screenshots use made-up demo repositories and apps.
+
+## 🚀 Get started
+
+There is no installer yet. Until the first release, build Sangraha on your own computer.
+
+1. **Install the tools.** You need [Rust](https://rustup.rs), [Node.js](https://nodejs.org)
+   22 or later, `git`, and the [GitHub CLI](https://cli.github.com) (`gh`). On Linux, also
+   install the WebKitGTK libraries listed in Tauri's
+   [prerequisites](https://v2.tauri.app/start/prerequisites/).
+2. **Sign in to GitHub once.** Run `gh auth login` and follow the prompts. Sangraha borrows
+   that sign-in each time it reads GitHub. It never saves the token.
+3. **Build and start it.**
+
+   ```sh
+   git clone https://github.com/sudharamachandranrajeev/sangraha-repo-manager
+   cd sangraha-repo-manager/app
+   npm ci
+   npx tauri dev
+   ```
+
+4. **First launch.** Sangraha looks for clones in your `Work` folder (or your home folder if
+   there is none). To change that, press the settings button (top right) and list your
+   folders, one per line. Then press the refresh button to read GitHub.
+
+<details>
+<summary>Just the command line</summary>
+
+```sh
+cargo install --path cli
+sangraha status           # what needs attention
+sangraha status --all     # every repository
+sangraha status --fetch   # git fetch in every clone first
+sangraha status --check   # exit code 1 when something needs attention
+sangraha roots ~/code ~/Work
+sangraha hide owner/name
+sangraha apps --all       # every app, installed or not
+sangraha install owner/name
+sangraha install --updates
+sangraha rollback owner/name
+sangraha follow someone/their-app
+sangraha security          # alerts by package, secret and code scanning
+sangraha leaks             # check unpushed commits here for leaks
+sangraha hook install --all  # the leak check in every clone
+sangraha gate              # may this clone's next release go out?
+sangraha bulk --repos public --set secret-scanning=on --dependabot --pr  # dry run
+sangraha bulk ... --apply  # the same, for real
+sangraha releases          # what waits for a release; subtree copies behind
+sangraha changelog         # a draft changelog since the last tag
+sangraha subtree pull ~/Work/suite apps/notes
+sangraha tidy              # merged and stale branches, missing files, large files
+sangraha tidy delete-merged you/app          # dry run
+sangraha tidy delete-merged you/app --apply  # the same, for real
+sangraha digest            # one summary of every tab
+sangraha digest --schedule on --at 08:30     # every day, as a notification
+```
+
+</details>
+
+## 🧭 How it works
+
+```mermaid
+flowchart LR
+  A["Your clones<br/>(git status)"] --> C["Sangraha"]
+  B["GitHub<br/>(one query per 25 repos)"] --> C
+  C --> D["Repos tab,<br/>worst first"]
+  C --> F["Apps tab"]
+  F --> G["Checked install<br/>in your own folder"]
+```
+
+- Sangraha walks your chosen folders three levels deep and asks `git` about each clone. This
+  is local and quick.
+- It reads GitHub with a few GraphQL queries: about one point of your 5,000-an-hour budget per
+  25 repositories. The footer shows what is left.
+- It keeps the last GitHub answer on disk, so the board opens at once and works offline.
+- **Fetch all** runs `git fetch` in every clone. That is the only time it touches a clone, and
+  it only updates what your computer knows about GitHub, never your files.
+- An install downloads the release file, checks its SHA-256, unpacks it beside the installed
+  copy, then swaps the two. The old copy stays as `<folder>.previous` for **Roll back**.
+
+## ❓ FAQ
+
+<details>
+<summary>It says it cannot sign in to GitHub</summary>
+
+Run `gh auth login` in a terminal, then press refresh. Sangraha also accepts a token in the
+`GH_TOKEN` or `GITHUB_TOKEN` environment variable.
+</details>
+
+<details>
+<summary>A repository is missing</summary>
+
+Sangraha lists repositories you own. A clone of someone else's repository shows as
+*upstream*. Check the folders in settings: clones deeper than three levels, and folders such as
+`node_modules`, `target` and `build`, are not searched.
+</details>
+
+<details>
+<summary>Does it change anything in my repositories?</summary>
+
+Only when you press a button for it. Otherwise it runs read-only `git` commands, plus
+`git fetch` when you press **Fetch all**. **Add** puts the leak check hook in `.git/hooks`, and
+**Pull** on the Releases tab merges a subtree copy's new commits (a merge commit in your clone,
+not pushed). Other buttons open GitHub, a file manager or a terminal; what happens next is up
+to you.
+
+On GitHub, only **Bulk changes** and **Delete merged** write. Bulk changes waits for
+**Preview** and then **Apply**, reads each repository again first and changes only what still
+differs. Delete merged asks first, and keeps any branch with commits newer than the merged
+pull request.
+
+Turning on the daily digest adds a systemd user timer (`sangraha-digest.timer`) on Linux or a
+Task Scheduler task on Windows. Turning it off removes them.
+</details>
+
+<details>
+<summary>What can Bulk changes not do?</summary>
+
+It does not touch archived repositories or forks, and it never turns off every way to merge.
+A file that is already there and differs is left alone unless you tick *Replace*. Settings and
+topics change straight away; only files go through a pull request. Branch protection rules
+and renaming or archiving many repositories are not part of it yet.
+</details>
+
+<details>
+<summary>Which file does the Apps tab install?</summary>
+
+On Linux: a portable `.tar.gz`, else an AppImage. On Windows: a portable `.zip`, else a single
+`.exe`, else the setup program (which shows its own steps). System packages (`.deb`, `.rpm`,
+`.pkg.tar.zst`) need an admin password, so Sangraha only links to them. If it picks the wrong
+file, add a download rule in settings, for example `owner/app = *-linux-x64-wpe.tar.gz`.
+</details>
+
+<details>
+<summary>It says "version unknown"</summary>
+
+Sangraha found the app on disk but the copy does not say which version it is. **Install
+latest** replaces it with the newest release, keeping the old copy for roll back.
+</details>
+
+<details>
+<summary>An update failed: "is running"</summary>
+
+Sangraha never replaces an app that is open. Close it, then press **Update** again.
+</details>
+
+<details>
+<summary>The leak check stopped my push. Now what?</summary>
+
+It lists each problem with its commit, file and line. Change the file, then fix the commit:
+`git commit --amend` for the last one, or `git rebase -i` for older ones, and push again. If
+it is a false alarm, `git push --no-verify` pushes once without any hook. For words that are
+fine to publish, take them out of your private list (settings).
+</details>
+
+<details>
+<summary>Does the leak check replace my own pre-push hook?</summary>
+
+No. Sangraha renames it to `pre-push.local` and runs it after its own check. **Remove** puts
+it back. Clones that share one hooks folder (`core.hooksPath`) are left alone; the Security
+tab says so.
+</details>
+
+<details>
+<summary>The Releases tab says "Raise version". What is wrong?</summary>
+
+Commits went in after the last tag, but the version files still say the tag's version. A
+release made now would carry the old number. Raise the version in the files first, then tag.
+In a repository with several packages, Sangraha compares the files in the main package's
+folder, and a Tauri app's `package.json`, `tauri.conf.json` and `Cargo.toml`; other packages
+keep their own versions.
+</details>
+
+<details>
+<summary>Where does a subtree copy come from?</summary>
+
+From the remote named like its folder (`apps/notes` and a remote called `notes`), else from
+the repository the commit message names ("Update apps/notes from notes-app main"), else from
+the repository with the folder's name. Renamed repositories are followed. **Pull** runs
+`git subtree pull` in your clone and makes a merge commit there; it pushes nothing.
+</details>
+
+<details>
+<summary>How do I send the digest somewhere else?</summary>
+
+In Settings, under **Daily digest and tray**, enter a command. Each digest goes to its input
+as JSON: a `summary` line, and `items`, each with an `area` (Repos, Apps, Security,
+Releases), a `text` and `new`. For example, `jq -r .summary | mail -s Sangraha you@example.com`
+mails the summary. The tray's check every 6 hours sends notifications only, not the command.
+
+On Linux the tray icon shows no tooltip; the menu has **Check now**.
+</details>
+
+<details>
+<summary>What does "Local only" mean?</summary>
+
+The folder is a git repository with no remote, or its remote is not on GitHub. Its commits
+exist on this computer only.
+</details>
+
+## 🛠️ For developers
+
+<details>
+<summary>Build, test and screenshots</summary>
+
+- `core/` – the boards: GitHub, clones, cache, app installs (`apps.rs`, `install.rs`), and
+  security (`security.rs`, `leaks.rs`, `hooks.rs`), bulk changes (`bulk.rs`), releases and subtrees (`releases.rs`, `subtrees.rs`), housekeeping and the digest (`housekeeping.rs`, `digest.rs`). The tray is `app/src-tauri/src/tray.rs`. `cli/` – the `sangraha` command. `app/` – the
+  window (Tauri 2, Svelte 5).
+- Checks: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
+  `cargo test --workspace`, and in `app/`, `npm run check`.
+- In a plain browser, `npm run dev` reads the files in `app/demo/` instead of the real
+  boards. They hold made-up data for screenshots.
+
+</details>
 
 ## License
 

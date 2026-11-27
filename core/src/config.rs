@@ -1,0 +1,189 @@
+//! Where Sangraha looks for clones, and where it keeps its own files.
+
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Config {
+    /// Folders searched for git clones (three levels deep).
+    pub roots: Vec<PathBuf>,
+    /// Row keys (`owner/name` or a folder path) the owner chose to hide from the board.
+    #[serde(default)]
+    pub hidden: Vec<String>,
+    /// Apps tab: where new apps are installed. `None` means `~/Applications` on Linux and
+    /// `%LOCALAPPDATA%\Programs` on Windows.
+    #[serde(default)]
+    pub apps_dir: Option<PathBuf>,
+    /// Apps tab: other people's repositories (`owner/name`) whose releases to track.
+    #[serde(default)]
+    pub extra_apps: Vec<String>,
+    /// Apps tab: apps (`owner/name`) hidden from the list.
+    #[serde(default)]
+    pub hidden_apps: Vec<String>,
+    /// Apps tab: offer pre-releases (most of the owner's apps only have pre-releases).
+    #[serde(default = "yes")]
+    pub prereleases: bool,
+    /// Apps tab: a release becomes an update only once it is this many days old.
+    #[serde(default)]
+    pub delay_days: u32,
+    /// Apps tab: per app (`owner/name`), a pattern the download's file name must match, with `*`
+    /// for any text. For apps whose file names Sangraha cannot read.
+    #[serde(default)]
+    pub asset_rules: BTreeMap<String, String>,
+    /// Leak check: a file of private words (one per line, `#` for comments) that must never
+    /// reach GitHub, such as a street name or an employer.
+    #[serde(default)]
+    pub terms_file: Option<PathBuf>,
+    /// Leak check: commit emails allowed besides GitHub's private `@users.noreply.github.com`.
+    #[serde(default)]
+    pub allowed_emails: Vec<String>,
+    /// Leak check: block commits that are not signed.
+    #[serde(default)]
+    pub require_signed: bool,
+    /// Digest: a command that gets each digest as JSON on its standard input (a reminder
+    /// system, an agent, a mail script).
+    #[serde(default)]
+    pub digest_command: Option<String>,
+    /// Digest: when the daily digest runs, "HH:MM".
+    #[serde(default = "nine")]
+    pub digest_time: String,
+    /// Keep running in the system tray when the window closes, checking every few hours.
+    #[serde(default)]
+    pub run_in_tray: bool,
+}
+
+fn nine() -> String {
+    "09:00".into()
+}
+
+fn yes() -> bool {
+    true
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        let home = home();
+        let work = home.join("Work");
+        let roots = if work.is_dir() {
+            vec![work]
+        } else {
+            vec![home]
+        };
+        Config {
+            roots,
+            hidden: Vec::new(),
+            apps_dir: None,
+            extra_apps: Vec::new(),
+            hidden_apps: Vec::new(),
+            prereleases: true,
+            delay_days: 0,
+            asset_rules: BTreeMap::new(),
+            terms_file: None,
+            allowed_emails: Vec::new(),
+            require_signed: false,
+            digest_command: None,
+            digest_time: nine(),
+            run_in_tray: false,
+        }
+    }
+}
+
+impl Config {
+    pub fn load() -> Config {
+        Self::load_from(&config_dir().join("config.json"))
+    }
+
+    pub fn load_from(path: &Path) -> Config {
+        std::fs::read(path)
+            .ok()
+            .and_then(|b| serde_json::from_slice(&b).ok())
+            .unwrap_or_default()
+    }
+
+    pub fn save(&self) -> crate::Result<()> {
+        let dir = config_dir();
+        std::fs::create_dir_all(&dir)?;
+        let tmp = dir.join("config.json.tmp");
+        std::fs::write(&tmp, serde_json::to_vec_pretty(self)?)?;
+        std::fs::rename(tmp, dir.join("config.json"))?;
+        Ok(())
+    }
+}
+
+impl Config {
+    /// Where new apps go.
+    pub fn apps_dir(&self) -> PathBuf {
+        self.apps_dir.clone().unwrap_or_else(|| {
+            if cfg!(windows) {
+                std::env::var_os("LOCALAPPDATA")
+                    .map(PathBuf::from)
+                    .unwrap_or_else(home)
+                    .join("Programs")
+            } else {
+                home().join("Applications")
+            }
+        })
+    }
+}
+
+pub fn home() -> PathBuf {
+    std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."))
+}
+
+/// `$XDG_CONFIG_HOME/sangraha`, `~/.config/sangraha`, or `%APPDATA%\Sangraha`.
+pub fn config_dir() -> PathBuf {
+    if cfg!(windows) {
+        return std::env::var_os("APPDATA")
+            .map(PathBuf::from)
+            .unwrap_or_else(home)
+            .join("Sangraha");
+    }
+    xdg("XDG_CONFIG_HOME", ".config").join("sangraha")
+}
+
+/// `$XDG_DATA_HOME/sangraha`, `~/.local/share/sangraha`, or `%LOCALAPPDATA%\Sangraha`.
+pub fn data_dir() -> PathBuf {
+    if cfg!(windows) {
+        return std::env::var_os("LOCALAPPDATA")
+            .map(PathBuf::from)
+            .unwrap_or_else(home)
+            .join("Sangraha");
+    }
+    xdg("XDG_DATA_HOME", ".local/share").join("sangraha")
+}
+
+fn xdg(var: &str, fallback: &str) -> PathBuf {
+    std::env::var_os(var)
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .unwrap_or_else(|| home().join(fallback))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_or_broken_file_gives_defaults() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(
+            Config::load_from(&dir.path().join("nope.json")),
+            Config::default()
+        );
+        std::fs::write(dir.path().join("bad.json"), b"{not json").unwrap();
+        // A file from an older version (no Apps settings) still loads, with pre-releases on.
+        std::fs::write(dir.path().join("old.json"), br#"{"roots":["/x"]}"#).unwrap();
+        let old = Config::load_from(&dir.path().join("old.json"));
+        assert_eq!(old.roots, vec![PathBuf::from("/x")]);
+        assert!(old.prereleases && old.extra_apps.is_empty());
+        assert_eq!(
+            Config::load_from(&dir.path().join("bad.json")),
+            Config::default()
+        );
+    }
+}

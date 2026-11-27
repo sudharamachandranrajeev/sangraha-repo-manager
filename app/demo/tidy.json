@@ -1,0 +1,140 @@
+{
+  "repos": [
+    {
+      "repo": "you/harbor-notes",
+      "private": false,
+      "branches": 7,
+      "merged": [
+        {
+          "name": "feat/tags",
+          "oid": "a1",
+          "lastCommit": "2026-10-02T10:00:00Z",
+          "pullRequest": 41
+        },
+        {
+          "name": "fix/sync-loop",
+          "oid": "a2",
+          "lastCommit": "2026-10-19T10:00:00Z",
+          "pullRequest": 44
+        },
+        {
+          "name": "release/1.4",
+          "oid": "a3",
+          "lastCommit": "2026-11-01T10:00:00Z",
+          "pullRequest": 47
+        }
+      ],
+      "stale": [
+        {
+          "name": "spike/crdt",
+          "oid": "a4",
+          "lastCommit": "2026-04-11T10:00:00Z",
+          "pullRequest": null
+        }
+      ],
+      "missing": [],
+      "oldRuns": 212,
+      "largeFiles": []
+    },
+    {
+      "repo": "you/meadow-photos",
+      "private": false,
+      "branches": 3,
+      "merged": [],
+      "stale": [],
+      "missing": [
+        "LICENSE"
+      ],
+      "oldRuns": 0,
+      "largeFiles": [
+        {
+          "path": "assets/sample-raw.dng",
+          "size": 48200000
+        },
+        {
+          "path": "docs/demo.mp4",
+          "size": 23900000
+        }
+      ]
+    },
+    {
+      "repo": "you/orbit-cli",
+      "private": false,
+      "branches": 2,
+      "merged": [
+        {
+          "name": "docs/install",
+          "oid": "b1",
+          "lastCommit": "2026-11-20T10:00:00Z",
+          "pullRequest": 12
+        }
+      ],
+      "stale": [],
+      "missing": [
+        "CI"
+      ],
+      "oldRuns": null,
+      "largeFiles": []
+    },
+    {
+      "repo": "you/trail-tracker",
+      "private": true,
+      "branches": 4,
+      "merged": [],
+      "stale": [
+        {
+          "name": "old-map-ui",
+          "oid": "c1",
+          "lastCommit": "2026-02-03T10:00:00Z",
+          "pullRequest": null
+        },
+        {
+          "name": "try-maplibre",
+          "oid": "c2",
+          "lastCommit": "2026-05-21T10:00:00Z",
+          "pullRequest": null
+        }
+      ],
+      "missing": [
+        "README",
+        "CI"
+      ],
+      "oldRuns": null,
+      "largeFiles": []
+    },
+    {
+      "repo": "you/quill-site",
+      "private": false,
+      "branches": 1,
+      "merged": [],
+      "stale": [],
+      "missing": [
+        "LICENSE",
+        "CI"
+      ],
+      "oldRuns": null,
+      "largeFiles": []
+    },
+    {
+      "repo": "you/tide-themes",
+      "private": false,
+      "branches": 2,
+      "merged": [],
+      "stale": [],
+      "missing": [],
+      "oldRuns": 38,
+      "largeFiles": []
+    }
+  ],
+  "counts": {
+    "merged": 4,
+    "stale": 3,
+    "noReadme": 1,
+    "noLicense": 2,
+    "noCi": 3,
+    "oldRuns": 250,
+    "largeFiles": 2
+  },
+  "checkedAt": 1795781624,
+  "warnings": []
+}

@@ -5,3 +5,8 @@ build/
 .env
 .env.*
 *.log
+app/src-tauri/gen/
+# Syncthing's own files (this folder is synced between computers).
+.stfolder/
+.stignore
+.stversions/

@@ -1,0 +1,19 @@
+[package]
+name = "sangraha-app"
+description = "Every GitHub repository you own and every clone on this computer, worst first"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "sangraha_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.4", features = [] }
+
+[dependencies]
+sangraha-core = { path = "../../core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2.12.5", features = ["tray-icon"] }

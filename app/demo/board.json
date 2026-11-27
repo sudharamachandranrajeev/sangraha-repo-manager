@@ -1,0 +1,673 @@
+{
+ "login": "you",
+ "checkedAt": 0,
+ "rate": {
+  "limit": 5000,
+  "remaining": 4996,
+  "resetAt": "2026-11-27T15:00:00Z"
+ },
+ "platform": "linux x64",
+ "roots": [
+  "/home/you/Work"
+ ],
+ "rows": [
+  {
+   "key": "you/harbor-notes",
+   "name": "harbor-notes",
+   "fullName": "you/harbor-notes",
+   "url": "https://github.com/you/harbor-notes",
+   "description": "Plain-text notes that sync between your computers",
+   "private": false,
+   "archived": false,
+   "fork": false,
+   "language": "Rust",
+   "pushedAt": "2026-11-26T10:00:00Z",
+   "defaultBranch": "main",
+   "ci": "failing",
+   "release": {
+    "tag": "v0.4.0-beta.2",
+    "prerelease": true,
+    "draft": false,
+    "publishedAt": "2026-11-20T09:00:00Z",
+    "url": "https://github.com/you/harbor-notes/releases/tag/v0.4.0-beta.2"
+   },
+   "alerts": {
+    "total": 3,
+    "critical": 1,
+    "high": 1,
+    "moderate": 1,
+    "low": 0
+   },
+   "openIssues": 4,
+   "openPrs": 1,
+   "foreign": false,
+   "clones": [
+    {
+     "path": "/home/you/Work/harbor-notes",
+     "github": "you/harbor-notes",
+     "otherRemote": null,
+     "branch": "feat/search",
+     "upstream": "origin/feat/search",
+     "ahead": 2,
+     "behind": 0,
+     "unpushed": 2,
+     "changed": 3,
+     "untracked": 0,
+     "stashes": 0,
+     "worktree": false,
+     "error": null
+    }
+   ],
+   "problems": [
+    {
+     "kind": "ciFailing",
+     "level": "high",
+     "text": "Checks failing on main",
+     "path": null
+    },
+    {
+     "kind": "alerts",
+     "level": "high",
+     "text": "3 security alerts (1 critical, 1 high)",
+     "path": null
+    },
+    {
+     "kind": "unpushed",
+     "level": "medium",
+     "text": "harbor-notes: 2 commits not on GitHub",
+     "path": "/home/you/Work/harbor-notes"
+    },
+    {
+     "kind": "uncommitted",
+     "level": "medium",
+     "text": "harbor-notes: 3 changed files not committed",
+     "path": "/home/you/Work/harbor-notes"
+    }
+   ],
+   "action": {
+    "kind": "openUrl",
+    "label": "Open checks",
+    "url": "https://github.com/you/harbor-notes/actions"
+   },
+   "score": 220,
+   "hidden": false
+  },
+  {
+   "key": "you/lantern-budget",
+   "name": "lantern-budget",
+   "fullName": "you/lantern-budget",
+   "url": "https://github.com/you/lantern-budget",
+   "description": "Budgets and bills, kept on your own device",
+   "private": false,
+   "archived": false,
+   "fork": false,
+   "language": "Dart",
+   "pushedAt": "2026-11-25T18:00:00Z",
+   "defaultBranch": "main",
+   "ci": "passing",
+   "release": {
+    "tag": "v1.2.0",
+    "prerelease": false,
+    "draft": false,
+    "publishedAt": "2026-11-24T12:00:00Z",
+    "url": "https://github.com/you/lantern-budget/releases/tag/v1.2.0"
+   },
+   "alerts": {
+    "total": 7,
+    "critical": 0,
+    "high": 2,
+    "moderate": 4,
+    "low": 1
+   },
+   "openIssues": 2,
+   "openPrs": 0,
+   "foreign": false,
+   "clones": [
+    {
+     "path": "/home/you/Work/lantern-budget",
+     "github": "you/lantern-budget",
+     "otherRemote": null,
+     "branch": "main",
+     "upstream": "origin/main",
+     "ahead": 0,
+     "behind": 0,
+     "unpushed": 0,
+     "changed": 0,
+     "untracked": 0,
+     "stashes": 0,
+     "worktree": false,
+     "error": null
+    }
+   ],
+   "problems": [
+    {
+     "kind": "alerts",
+     "level": "high",
+     "text": "7 security alerts (0 critical, 2 high)",
+     "path": null
+    }
+   ],
+   "action": {
+    "kind": "openUrl",
+    "label": "Open alerts",
+    "url": "https://github.com/you/lantern-budget/security/dependabot"
+   },
+   "score": 100,
+   "hidden": false
+  },
+  {
+   "key": "you/orbit-cli",
+   "name": "orbit-cli",
+   "fullName": "you/orbit-cli",
+   "url": "https://github.com/you/orbit-cli",
+   "description": "A small command line for everyday chores",
+   "private": false,
+   "archived": false,
+   "fork": false,
+   "language": "Go",
+   "pushedAt": "2026-11-24T08:00:00Z",
+   "defaultBranch": "main",
+   "ci": "failing",
+   "release": {
+    "tag": "v0.9.1",
+    "prerelease": false,
+    "draft": false,
+    "publishedAt": "2026-11-02T08:00:00Z",
+    "url": "https://github.com/you/orbit-cli/releases/tag/v0.9.1"
+   },
+   "alerts": null,
+   "openIssues": 1,
+   "openPrs": 2,
+   "foreign": false,
+   "clones": [
+    {
+     "path": "/home/you/Work/orbit-cli",
+     "github": "you/orbit-cli",
+     "otherRemote": null,
+     "branch": "main",
+     "upstream": "origin/main",
+     "ahead": 0,
+     "behind": 0,
+     "unpushed": 0,
+     "changed": 0,
+     "untracked": 0,
+     "stashes": 0,
+     "worktree": false,
+     "error": null
+    }
+   ],
+   "problems": [
+    {
+     "kind": "ciFailing",
+     "level": "high",
+     "text": "Checks failing on main",
+     "path": null
+    }
+   ],
+   "action": {
+    "kind": "openUrl",
+    "label": "Open checks",
+    "url": "https://github.com/you/orbit-cli/actions"
+   },
+   "score": 100,
+   "hidden": false
+  },
+  {
+   "key": "/home/you/Work/scratch",
+   "name": "scratch",
+   "fullName": null,
+   "url": null,
+   "description": null,
+   "private": false,
+   "archived": false,
+   "fork": false,
+   "language": null,
+   "pushedAt": null,
+   "defaultBranch": null,
+   "ci": "none",
+   "release": null,
+   "alerts": null,
+   "openIssues": 0,
+   "openPrs": 0,
+   "foreign": false,
+   "clones": [
+    {
+     "path": "/home/you/Work/scratch",
+     "github": null,
+     "otherRemote": null,
+     "branch": "main",
+     "upstream": null,
+     "ahead": 0,
+     "behind": 0,
+     "unpushed": 3,
+     "changed": 1,
+     "untracked": 0,
+     "stashes": 0,
+     "worktree": false,
+     "error": null
+    }
+   ],
+   "problems": [
+    {
+     "kind": "localOnly",
+     "level": "medium",
+     "text": "No remote: only on this computer",
+     "path": "/home/you/Work/scratch"
+    },
+    {
+     "kind": "unpushed",
+     "level": "medium",
+     "text": "scratch: 3 commits not on GitHub",
+     "path": "/home/you/Work/scratch"
+    },
+    {
+     "kind": "uncommitted",
+     "level": "medium",
+     "text": "scratch: 1 changed file not committed",
+     "path": "/home/you/Work/scratch"
+    }
+   ],
+   "action": {
+    "kind": "openTerminal",
+    "label": "Open terminal",
+    "path": "/home/you/Work/scratch"
+   },
+   "score": 30,
+   "hidden": false
+  },
+  {
+   "key": "you/pocket-recipes",
+   "name": "pocket-recipes",
+   "fullName": "you/pocket-recipes",
+   "url": "https://github.com/you/pocket-recipes",
+   "description": "Recipes, shopping lists and a week's meal plan",
+   "private": false,
+   "archived": false,
+   "fork": false,
+   "language": "TypeScript",
+   "pushedAt": "2026-11-20T08:00:00Z",
+   "defaultBranch": "main",
+   "ci": "passing",
+   "release": {
+    "tag": "v0.6.3",
+    "prerelease": false,
+    "draft": false,
+    "publishedAt": "2026-11-19T08:00:00Z",
+    "url": "https://github.com/you/pocket-recipes/releases/tag/v0.6.3"
+   },
+   "alerts": {
+    "total": 0,
+    "critical": 0,
+    "high": 0,
+    "moderate": 0,
+    "low": 0
+   },
+   "openIssues": 0,
+   "openPrs": 0,
+   "foreign": false,
+   "clones": [
+    {
+     "path": "/home/you/Work/pocket-recipes",
+     "github": "you/pocket-recipes",
+     "otherRemote": null,
+     "branch": "main",
+     "upstream": "origin/main",
+     "ahead": 0,
+     "behind": 0,
+     "unpushed": 0,
+     "changed": 12,
+     "untracked": 2,
+     "stashes": 0,
+     "worktree": false,
+     "error": null
+    }
+   ],
+   "problems": [
+    {
+     "kind": "uncommitted",
+     "level": "medium",
+     "text": "pocket-recipes: 12 changed files not committed",
+     "path": "/home/you/Work/pocket-recipes"
+    },
+    {
+     "kind": "untracked",
+     "level": "low",
+     "text": "pocket-recipes: 2 new files not tracked",
+     "path": "/home/you/Work/pocket-recipes"
+    }
+   ],
+   "action": {
+    "kind": "openTerminal",
+    "label": "Open terminal",
+    "path": "/home/you/Work/pocket-recipes"
+   },
+   "score": 11,
+   "hidden": false
+  },
+  {
+   "key": "you/meadow-photos",
+   "name": "meadow-photos",
+   "fullName": "you/meadow-photos",
+   "url": "https://github.com/you/meadow-photos",
+   "description": "Photo library that never uploads your pictures",
+   "private": false,
+   "archived": false,
+   "fork": false,
+   "language": "Rust",
+   "pushedAt": "2026-11-23T08:00:00Z",
+   "defaultBranch": "main",
+   "ci": "running",
+   "release": {
+    "tag": "v0.2.0-alpha.5",
+    "prerelease": true,
+    "draft": false,
+    "publishedAt": "2026-11-22T08:00:00Z",
+    "url": "https://github.com/you/meadow-photos/releases/tag/v0.2.0-alpha.5"
+   },
+   "alerts": null,
+   "openIssues": 0,
+   "openPrs": 1,
+   "foreign": false,
+   "clones": [
+    {
+     "path": "/home/you/Work/meadow-photos",
+     "github": "you/meadow-photos",
+     "otherRemote": null,
+     "branch": "main",
+     "upstream": "origin/main",
+     "ahead": 5,
+     "behind": 0,
+     "unpushed": 5,
+     "changed": 0,
+     "untracked": 0,
+     "stashes": 0,
+     "worktree": false,
+     "error": null
+    }
+   ],
+   "problems": [
+    {
+     "kind": "unpushed",
+     "level": "medium",
+     "text": "meadow-photos: 5 commits not on GitHub",
+     "path": "/home/you/Work/meadow-photos"
+    }
+   ],
+   "action": {
+    "kind": "openTerminal",
+    "label": "Open terminal",
+    "path": "/home/you/Work/meadow-photos"
+   },
+   "score": 10,
+   "hidden": false
+  },
+  {
+   "key": "you/trail-tracker",
+   "name": "trail-tracker",
+   "fullName": "you/trail-tracker",
+   "url": "https://github.com/you/trail-tracker",
+   "description": "Walks and rides on a map, offline",
+   "private": false,
+   "archived": false,
+   "fork": false,
+   "language": "Kotlin",
+   "pushedAt": "2026-11-18T08:00:00Z",
+   "defaultBranch": "main",
+   "ci": "passing",
+   "release": {
+    "tag": "v2.0.1",
+    "prerelease": false,
+    "draft": false,
+    "publishedAt": "2026-11-10T08:00:00Z",
+    "url": "https://github.com/you/trail-tracker/releases/tag/v2.0.1"
+   },
+   "alerts": {
+    "total": 0,
+    "critical": 0,
+    "high": 0,
+    "moderate": 0,
+    "low": 0
+   },
+   "openIssues": 3,
+   "openPrs": 0,
+   "foreign": false,
+   "clones": [
+    {
+     "path": "/home/you/Work/trail-tracker",
+     "github": "you/trail-tracker",
+     "otherRemote": null,
+     "branch": "main",
+     "upstream": "origin/main",
+     "ahead": 0,
+     "behind": 4,
+     "unpushed": 0,
+     "changed": 0,
+     "untracked": 0,
+     "stashes": 0,
+     "worktree": false,
+     "error": null
+    }
+   ],
+   "problems": [
+    {
+     "kind": "behind",
+     "level": "low",
+     "text": "trail-tracker: 4 commits behind origin/main",
+     "path": "/home/you/Work/trail-tracker"
+    }
+   ],
+   "action": {
+    "kind": "openTerminal",
+    "label": "Open terminal",
+    "path": "/home/you/Work/trail-tracker"
+   },
+   "score": 1,
+   "hidden": false
+  },
+  {
+   "key": "you/quill-site",
+   "name": "quill-site",
+   "fullName": "you/quill-site",
+   "url": "https://github.com/you/quill-site",
+   "description": "Personal website and blog",
+   "private": false,
+   "archived": false,
+   "fork": false,
+   "language": "Astro",
+   "pushedAt": "2026-11-15T08:00:00Z",
+   "defaultBranch": "main",
+   "ci": "passing",
+   "release": null,
+   "alerts": {
+    "total": 0,
+    "critical": 0,
+    "high": 0,
+    "moderate": 0,
+    "low": 0
+   },
+   "openIssues": 0,
+   "openPrs": 0,
+   "foreign": false,
+   "clones": [
+    {
+     "path": "/home/you/Work/quill-site",
+     "github": "you/quill-site",
+     "otherRemote": null,
+     "branch": "main",
+     "upstream": "origin/main",
+     "ahead": 0,
+     "behind": 0,
+     "unpushed": 0,
+     "changed": 0,
+     "untracked": 0,
+     "stashes": 0,
+     "worktree": false,
+     "error": null
+    }
+   ],
+   "problems": [],
+   "action": {
+    "kind": "openFolder",
+    "label": "Open folder",
+    "path": "/home/you/Work/quill-site"
+   },
+   "score": 0,
+   "hidden": false
+  },
+  {
+   "key": "you/tide-themes",
+   "name": "tide-themes",
+   "fullName": "you/tide-themes",
+   "url": "https://github.com/you/tide-themes",
+   "description": "Colour themes for terminals and editors",
+   "private": false,
+   "archived": false,
+   "fork": false,
+   "language": "Python",
+   "pushedAt": "2026-11-12T08:00:00Z",
+   "defaultBranch": "main",
+   "ci": "none",
+   "release": {
+    "tag": "themes-2026.11",
+    "prerelease": false,
+    "draft": false,
+    "publishedAt": "2026-11-12T08:00:00Z",
+    "url": "https://github.com/you/tide-themes/releases/tag/themes-2026.11"
+   },
+   "alerts": null,
+   "openIssues": 0,
+   "openPrs": 0,
+   "foreign": false,
+   "clones": [
+    {
+     "path": "/home/you/Work/tide-themes",
+     "github": "you/tide-themes",
+     "otherRemote": null,
+     "branch": "main",
+     "upstream": "origin/main",
+     "ahead": 0,
+     "behind": 0,
+     "unpushed": 0,
+     "changed": 0,
+     "untracked": 0,
+     "stashes": 0,
+     "worktree": false,
+     "error": null
+    }
+   ],
+   "problems": [],
+   "action": {
+    "kind": "openFolder",
+    "label": "Open folder",
+    "path": "/home/you/Work/tide-themes"
+   },
+   "score": 0,
+   "hidden": false
+  },
+  {
+   "key": "you/echo-player",
+   "name": "echo-player",
+   "fullName": "you/echo-player",
+   "url": "https://github.com/you/echo-player",
+   "description": "Music player for your own files",
+   "private": false,
+   "archived": false,
+   "fork": false,
+   "language": "Dart",
+   "pushedAt": "2026-11-08T08:00:00Z",
+   "defaultBranch": "main",
+   "ci": "passing",
+   "release": {
+    "tag": "v1.0.4",
+    "prerelease": false,
+    "draft": false,
+    "publishedAt": "2026-11-07T08:00:00Z",
+    "url": "https://github.com/you/echo-player/releases/tag/v1.0.4"
+   },
+   "alerts": {
+    "total": 0,
+    "critical": 0,
+    "high": 0,
+    "moderate": 0,
+    "low": 0
+   },
+   "openIssues": 5,
+   "openPrs": 0,
+   "foreign": false,
+   "clones": [],
+   "problems": [
+    {
+     "kind": "notCloned",
+     "level": "info",
+     "text": "Not cloned on this computer",
+     "path": null
+    }
+   ],
+   "action": {
+    "kind": "openUrl",
+    "label": "Open on GitHub",
+    "url": "https://github.com/you/echo-player"
+   },
+   "score": 0,
+   "hidden": false
+  },
+  {
+   "key": "you/paper-trail",
+   "name": "paper-trail",
+   "fullName": "you/paper-trail",
+   "url": "https://github.com/you/paper-trail",
+   "description": "Receipts and warranties in one place",
+   "private": true,
+   "archived": false,
+   "fork": false,
+   "language": "Rust",
+   "pushedAt": "2026-10-30T08:00:00Z",
+   "defaultBranch": "main",
+   "ci": "passing",
+   "release": {
+    "tag": "v0.3.0",
+    "prerelease": false,
+    "draft": false,
+    "publishedAt": "2026-10-30T08:00:00Z",
+    "url": "https://github.com/you/paper-trail/releases/tag/v0.3.0"
+   },
+   "alerts": {
+    "total": 0,
+    "critical": 0,
+    "high": 0,
+    "moderate": 0,
+    "low": 0
+   },
+   "openIssues": 0,
+   "openPrs": 0,
+   "foreign": false,
+   "clones": [],
+   "problems": [
+    {
+     "kind": "notCloned",
+     "level": "info",
+     "text": "Not cloned on this computer",
+     "path": null
+    }
+   ],
+   "action": {
+    "kind": "openUrl",
+    "label": "Open on GitHub",
+    "url": "https://github.com/you/paper-trail"
+   },
+   "score": 0,
+   "hidden": false
+  }
+ ],
+ "counts": {
+  "all": 11,
+  "attention": 6,
+  "unpushed": 3,
+  "ciRed": 2,
+  "alerts": 2,
+  "notCloned": 2,
+  "localOnly": 1,
+  "hidden": 0
+ },
+ "warnings": []
+}

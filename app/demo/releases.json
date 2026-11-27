@@ -1,0 +1,222 @@
+{
+ "rows": [
+  {
+   "repo": "you/lantern-budget",
+   "path": "/home/you/Work/lantern-budget",
+   "branch": "main",
+   "tag": "v0.4.1",
+   "tagDate": "2026-10-02T10:00:00Z",
+   "tagSha": "0000000000000000000000000000000000000000",
+   "since": 3,
+   "pullRequests": 1,
+   "versions": [
+    {
+     "path": "Cargo.toml",
+     "version": "0.4.1"
+    },
+    {
+     "path": "app/package.json",
+     "version": "0.4.1"
+    },
+    {
+     "path": "app/src-tauri/tauri.conf.json",
+     "version": "0.4.0"
+    }
+   ],
+   "version": "0.4.1",
+   "verdict": "disagree",
+   "note": "app/src-tauri/tauri.conf.json says 0.4.0, app/package.json says 0.4.1",
+   "release": null,
+   "unreleasedTag": false
+  },
+  {
+   "repo": "you/harbor-notes",
+   "path": "/home/you/Work/harbor-notes",
+   "branch": "main",
+   "tag": "v0.3.2",
+   "tagDate": "2026-11-01T09:00:00Z",
+   "tagSha": "0000000000000000000000000000000000000000",
+   "since": 27,
+   "pullRequests": 4,
+   "versions": [
+    {
+     "path": "pubspec.yaml",
+     "version": "0.3.2+9"
+    }
+   ],
+   "version": "0.3.2+9",
+   "verdict": "needsBump",
+   "note": "27 commits since v0.3.2, but the files still say 0.3.2+9: raise the version first",
+   "release": null,
+   "unreleasedTag": false
+  },
+  {
+   "repo": "you/orbit-cli",
+   "path": "/home/you/Work/orbit-cli",
+   "branch": "main",
+   "tag": "v1.2.0",
+   "tagDate": "2026-09-12T09:00:00Z",
+   "tagSha": "0000000000000000000000000000000000000000",
+   "since": 9,
+   "pullRequests": 0,
+   "versions": [
+    {
+     "path": "Cargo.toml",
+     "version": "1.2.0"
+    }
+   ],
+   "version": "1.2.0",
+   "verdict": "needsBump",
+   "note": "9 commits since v1.2.0, but the files still say 1.2.0: raise the version first",
+   "release": null,
+   "unreleasedTag": false
+  },
+  {
+   "repo": "you/meadow-photos",
+   "path": "/home/you/Work/meadow-photos",
+   "branch": "main",
+   "tag": "v0.9.0",
+   "tagDate": "2026-11-20T09:00:00Z",
+   "tagSha": "0000000000000000000000000000000000000000",
+   "since": 6,
+   "pullRequests": 2,
+   "versions": [
+    {
+     "path": "Cargo.toml",
+     "version": "0.10.0"
+    },
+    {
+     "path": "app/package.json",
+     "version": "0.10.0"
+    },
+    {
+     "path": "app/src-tauri/tauri.conf.json",
+     "version": "0.10.0"
+    }
+   ],
+   "version": "0.10.0",
+   "verdict": "ready",
+   "note": "Ready to tag: the files say 0.10.0, newer than v0.9.0",
+   "release": null,
+   "unreleasedTag": false
+  },
+  {
+   "repo": "you/trail-tracker",
+   "path": "/home/you/Work/trail-tracker",
+   "branch": "main",
+   "tag": "v2.0.1",
+   "tagDate": "2026-11-25T09:00:00Z",
+   "tagSha": "0000000000000000000000000000000000000000",
+   "since": 0,
+   "pullRequests": 0,
+   "versions": [
+    {
+     "path": "package.json",
+     "version": "2.0.1"
+    }
+   ],
+   "version": "2.0.1",
+   "verdict": "noChanges",
+   "note": "Nothing since v2.0.1",
+   "release": null,
+   "unreleasedTag": true
+  },
+  {
+   "repo": "you/quill-site",
+   "path": "/home/you/Work/quill-site",
+   "branch": "main",
+   "tag": "v0.1.0",
+   "tagDate": "2026-08-01T09:00:00Z",
+   "tagSha": "0000000000000000000000000000000000000000",
+   "since": 0,
+   "pullRequests": 0,
+   "versions": [
+    {
+     "path": "package.json",
+     "version": "0.1.0"
+    }
+   ],
+   "version": "0.1.0",
+   "verdict": "noChanges",
+   "note": "Nothing since v0.1.0",
+   "release": null,
+   "unreleasedTag": false
+  },
+  {
+   "repo": "you/echo-player",
+   "path": "/home/you/Work/echo-player",
+   "branch": "main",
+   "tag": null,
+   "tagDate": null,
+   "tagSha": null,
+   "since": 41,
+   "pullRequests": 0,
+   "versions": [
+    {
+     "path": "pubspec.yaml",
+     "version": "0.1.0+1"
+    }
+   ],
+   "version": "0.1.0+1",
+   "verdict": "noTag",
+   "note": "Never tagged; the files say 0.1.0+1",
+   "release": null,
+   "unreleasedTag": false
+  }
+ ],
+ "subtrees": [
+  {
+   "host": "you/life-suite",
+   "path": "/home/you/Work/life-suite",
+   "dir": "apps/harbor-notes",
+   "pulled": "1111111111111111111111111111111111111111",
+   "pulledAt": "2026-11-02T12:00:00Z",
+   "squash": false,
+   "source": "you/harbor-notes",
+   "branch": "main",
+   "behind": 27,
+   "state": "behind",
+   "note": null,
+   "edits": [
+    "a1b2c3d Fix a typo in the copy"
+   ]
+  },
+  {
+   "host": "you/life-suite",
+   "path": "/home/you/Work/life-suite",
+   "dir": "apps/lantern-budget",
+   "pulled": "2222222222222222222222222222222222222222",
+   "pulledAt": "2026-11-24T12:00:00Z",
+   "squash": false,
+   "source": "you/lantern-budget",
+   "branch": "main",
+   "behind": 0,
+   "state": "current",
+   "note": null,
+   "edits": []
+  },
+  {
+   "host": "you/life-suite",
+   "path": "/home/you/Work/life-suite",
+   "dir": "apps/old-notes",
+   "pulled": "3333333333333333333333333333333333333333",
+   "pulledAt": "2026-06-01T12:00:00Z",
+   "squash": false,
+   "source": "you/old-notes",
+   "branch": "main",
+   "behind": null,
+   "state": "unknown",
+   "note": "you/old-notes does not have the commit pulled, or its main branch: is this the right source?",
+   "edits": []
+  }
+ ],
+ "counts": {
+  "ready": 1,
+  "needsBump": 2,
+  "disagree": 1,
+  "unreleased": 1,
+  "drift": 1
+ },
+ "checkedAt": null,
+ "warnings": []
+}
