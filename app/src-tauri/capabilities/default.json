@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Sangraha main window: read the board, open links, folders and terminals",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

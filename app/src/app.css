@@ -1,0 +1,174 @@
+:root {
+  --bg: #f3f2ee;
+  --surface: #fbfaf7;
+  --surface-2: #ebe9e3;
+  --line: #d9d6ce;
+  --line-strong: #bdb9ae;
+  --text: #15161a;
+  --muted: #5d5f66;
+  --faint: #8d8f96;
+  --ink: #15161a;
+  --ink-text: #fbfaf7;
+  --bad: #c2362f;
+  --bad-bg: #fbe9e6;
+  --warn: #9a6400;
+  --warn-bg: #fbf0d9;
+  --info: #2a62c9;
+  --info-bg: #e7eefb;
+  --ok: #1d7f4a;
+  --ok-bg: #e2f3e9;
+  --focus: #2a62c9;
+  --mono: 'JetBrains Mono', 'Cascadia Mono', 'SF Mono', ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: light;
+  font-family: Inter, 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, Ubuntu, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101114;
+    --surface: #16171b;
+    --surface-2: #1d1f24;
+    --line: #2b2d33;
+    --line-strong: #3d4048;
+    --text: #ecedf0;
+    --muted: #a3a6ae;
+    --faint: #6f727b;
+    --ink: #f3f3f1;
+    --ink-text: #111215;
+    --bad: #ff6b61;
+    --bad-bg: #351816;
+    --warn: #f2b33d;
+    --warn-bg: #33270f;
+    --info: #79a6ff;
+    --info-bg: #162238;
+    --ok: #4bd98b;
+    --ok-bg: #123022;
+    --focus: #79a6ff;
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  height: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  text-transform: inherit;
+  letter-spacing: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Small capitals in the monospace face: labels, chips and buttons only. */
+.caps {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  background: var(--ink);
+  color: var(--ink-text);
+  white-space: nowrap;
+  transition:
+    opacity 120ms ease-out,
+    transform 120ms ease-out;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn.ghost {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+
+.btn.ghost:hover:not(:disabled) {
+  border-color: var(--text);
+}
+
+.btn.icon {
+  width: 32px;
+  padding: 0;
+}
+
+.chip {
+  display: inline-block;
+  padding: 2px 6px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.tone-bad {
+  color: var(--bad);
+  background: var(--bad-bg);
+}
+.tone-warn {
+  color: var(--warn);
+  background: var(--warn-bg);
+}
+.tone-info {
+  color: var(--info);
+  background: var(--info-bg);
+}
+.tone-ok {
+  color: var(--ok);
+  background: var(--ok-bg);
+}
+.tone-muted {
+  color: var(--muted);
+  background: transparent;
+  border-color: var(--line-strong);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
