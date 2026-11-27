@@ -1,5 +1,6 @@
 //! Where Sangraha looks for clones, and where it keeps its own files.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -12,6 +13,30 @@ pub struct Config {
     /// Row keys (`owner/name` or a folder path) the owner chose to hide from the board.
     #[serde(default)]
     pub hidden: Vec<String>,
+    /// Apps tab: where new apps are installed. `None` means `~/Applications` on Linux and
+    /// `%LOCALAPPDATA%\Programs` on Windows.
+    #[serde(default)]
+    pub apps_dir: Option<PathBuf>,
+    /// Apps tab: other people's repositories (`owner/name`) whose releases to track.
+    #[serde(default)]
+    pub extra_apps: Vec<String>,
+    /// Apps tab: apps (`owner/name`) hidden from the list.
+    #[serde(default)]
+    pub hidden_apps: Vec<String>,
+    /// Apps tab: offer pre-releases (most of the owner's apps only have pre-releases).
+    #[serde(default = "yes")]
+    pub prereleases: bool,
+    /// Apps tab: a release becomes an update only once it is this many days old.
+    #[serde(default)]
+    pub delay_days: u32,
+    /// Apps tab: per app (`owner/name`), a pattern the download's file name must match, with `*`
+    /// for any text. For apps whose file names Sangraha cannot read.
+    #[serde(default)]
+    pub asset_rules: BTreeMap<String, String>,
+}
+
+fn yes() -> bool {
+    true
 }
 
 impl Default for Config {
@@ -26,6 +51,12 @@ impl Default for Config {
         Config {
             roots,
             hidden: Vec::new(),
+            apps_dir: None,
+            extra_apps: Vec::new(),
+            hidden_apps: Vec::new(),
+            prereleases: true,
+            delay_days: 0,
+            asset_rules: BTreeMap::new(),
         }
     }
 }
@@ -49,6 +80,22 @@ impl Config {
         std::fs::write(&tmp, serde_json::to_vec_pretty(self)?)?;
         std::fs::rename(tmp, dir.join("config.json"))?;
         Ok(())
+    }
+}
+
+impl Config {
+    /// Where new apps go.
+    pub fn apps_dir(&self) -> PathBuf {
+        self.apps_dir.clone().unwrap_or_else(|| {
+            if cfg!(windows) {
+                std::env::var_os("LOCALAPPDATA")
+                    .map(PathBuf::from)
+                    .unwrap_or_else(home)
+                    .join("Programs")
+            } else {
+                home().join("Applications")
+            }
+        })
     }
 }
 
@@ -99,6 +146,11 @@ mod tests {
             Config::default()
         );
         std::fs::write(dir.path().join("bad.json"), b"{not json").unwrap();
+        // A file from an older version (no Apps settings) still loads, with pre-releases on.
+        std::fs::write(dir.path().join("old.json"), br#"{"roots":["/x"]}"#).unwrap();
+        let old = Config::load_from(&dir.path().join("old.json"));
+        assert_eq!(old.roots, vec![PathBuf::from("/x")]);
+        assert!(old.prereleases && old.extra_apps.is_empty());
         assert_eq!(
             Config::load_from(&dir.path().join("bad.json")),
             Config::default()

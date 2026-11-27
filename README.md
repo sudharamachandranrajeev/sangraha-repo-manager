@@ -1,7 +1,7 @@
 <div align="center">
   <img src="app/public/favicon.svg" width="140" alt="Sangraha logo">
   <h1>Sangraha</h1>
-  <h4>See every GitHub repository you own, and every copy on your computer, on one board. Worst problems first.</h4>
+  <h4>Your GitHub repositories and the apps you publish, on one board: what needs you first, and what to update.</h4>
 
   <p>
     <img src="https://img.shields.io/badge/status-alpha-orange" alt="Status: alpha">
@@ -20,13 +20,18 @@
   <img src="docs/screenshots/board-dark.png" width="900" alt="The Sangraha board: a table of repositories with failing checks, security alerts and unpushed work at the top">
 </div>
 
-Sangraha ("collection" in Sanskrit) is for people who keep many repositories at once. It reads
-GitHub and the clones on your computer together, and answers one question: *what needs me
-today?* Failing checks, security alerts, commits that never reached GitHub and forgotten
-changes all show on one board, worst first, each with one button that takes you there.
+Sangraha ("collection" in Sanskrit) is for people who keep many repositories at once. It has
+two tabs:
 
-Sangraha is **alpha** software. It only reads: it never commits, pushes or changes your
-files. There is no download yet; build it from source (below).
+- **Repos** reads GitHub and the clones on your computer together and answers *what needs me
+  today?* Failing checks, security alerts, commits that never reached GitHub and forgotten
+  changes show worst first, each with one button that takes you there.
+- **Apps** lists the apps your repositories publish as GitHub releases (and any other
+  repository you follow), shows which are installed here and which have an update, and
+  installs them for you, checked and with an undo.
+
+Sangraha is **alpha** software. On the Repos tab it only reads: it never commits, pushes or
+changes your files. There is no download yet; build it from source (below).
 
 ## ✨ What it does
 
@@ -46,22 +51,35 @@ files. There is no download yet; build it from source (below).
 - 🔁 **Renamed repositories** – a clone whose remote still uses an old name is matched to the
   new one, and the row says so.
 - 🙈 **Hide what you do not care about** – hidden rows stay one click away under *Hidden*.
-- ⌨️ **Command line too** – `sangraha status` prints the same board in a terminal.
+- 📦 **Your apps, installed and current** – the Apps tab finds the right file for this computer
+  in each release (pre-releases included), and shows the version here next to the one on
+  GitHub. It also finds copies you installed by hand.
+- 🔐 **Checked downloads** – every file is checked against the SHA-256 (a fingerprint) that
+  GitHub or the release publishes. A file without one is installed only if you say so.
+- ↩️ **Roll back** – an update keeps the version it replaced, one click away. An app that is
+  running is never replaced.
+- 🧑 **No admin password** – apps go in a folder of your own (`~/Applications`, or
+  `%LOCALAPPDATA%\Programs` on Windows) with a menu entry. **Update all** shows the list and
+  the download size first.
+- ⏳ **Wait a few days if you like** – an optional delay before an update is offered, so a
+  broken release can be fixed before it reaches you.
+- ⌨️ **Command line too** – `sangraha status` and `sangraha apps` print the same boards in a
+  terminal.
 
 ## 📸 Screenshots
 
 <table>
   <tr>
     <td><img src="docs/screenshots/board-light.png" alt="The board in the light theme"></td>
-    <td><img src="docs/screenshots/grid-dark.png" alt="The grid view: one card per repository"></td>
+    <td><img src="docs/screenshots/apps-dark.png" alt="The Apps tab: one card per app, with updates first"></td>
   </tr>
   <tr>
-    <td align="center">Table view, light theme</td>
-    <td align="center">Grid view, dark theme</td>
+    <td align="center">Repos tab, light theme</td>
+    <td align="center">Apps tab, dark theme</td>
   </tr>
 </table>
 
-The screenshots use made-up demo repositories.
+The screenshots use made-up demo repositories and apps.
 
 ## 🚀 Get started
 
@@ -97,6 +115,11 @@ sangraha status --fetch   # git fetch in every clone first
 sangraha status --check   # exit code 1 when something needs attention
 sangraha roots ~/code ~/Work
 sangraha hide owner/name
+sangraha apps --all       # every app, installed or not
+sangraha install owner/name
+sangraha install --updates
+sangraha rollback owner/name
+sangraha follow someone/their-app
 ```
 
 </details>
@@ -107,8 +130,9 @@ sangraha hide owner/name
 flowchart LR
   A["Your clones<br/>(git status)"] --> C["Sangraha"]
   B["GitHub<br/>(one query per 25 repos)"] --> C
-  C --> D["One board,<br/>worst first"]
-  C --> E["Saved copy<br/>for next start"]
+  C --> D["Repos tab,<br/>worst first"]
+  C --> F["Apps tab"]
+  F --> G["Checked install<br/>in your own folder"]
 ```
 
 - Sangraha walks your chosen folders three levels deep and asks `git` about each clone. This
@@ -118,6 +142,8 @@ flowchart LR
 - It keeps the last GitHub answer on disk, so the board opens at once and works offline.
 - **Fetch all** runs `git fetch` in every clone. That is the only time it touches a clone, and
   it only updates what your computer knows about GitHub, never your files.
+- An install downloads the release file, checks its SHA-256, unpacks it beside the installed
+  copy, then swaps the two. The old copy stays as `<folder>.previous` for **Roll back**.
 
 ## ❓ FAQ
 
@@ -144,6 +170,28 @@ open GitHub, a file manager or a terminal; what happens next is up to you.
 </details>
 
 <details>
+<summary>Which file does the Apps tab install?</summary>
+
+On Linux: a portable `.tar.gz`, else an AppImage. On Windows: a portable `.zip`, else a single
+`.exe`, else the setup program (which shows its own steps). System packages (`.deb`, `.rpm`,
+`.pkg.tar.zst`) need an admin password, so Sangraha only links to them. If it picks the wrong
+file, add a download rule in settings, for example `owner/app = *-linux-x64-wpe.tar.gz`.
+</details>
+
+<details>
+<summary>It says "version unknown"</summary>
+
+Sangraha found the app on disk but the copy does not say which version it is. **Install
+latest** replaces it with the newest release, keeping the old copy for roll back.
+</details>
+
+<details>
+<summary>An update failed: "is running"</summary>
+
+Sangraha never replaces an app that is open. Close it, then press **Update** again.
+</details>
+
+<details>
 <summary>What does "Local only" mean?</summary>
 
 The folder is a git repository with no remote, or its remote is not on GitHub. Its commits
@@ -155,12 +203,12 @@ exist on this computer only.
 <details>
 <summary>Build, test and screenshots</summary>
 
-- `core/` – the board: GitHub, clones, cache. `cli/` – the `sangraha` command. `app/` – the
+- `core/` – the boards: GitHub, clones, cache, and app installs (`apps.rs`, `install.rs`). `cli/` – the `sangraha` command. `app/` – the
   window (Tauri 2, Svelte 5).
 - Checks: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace`, and in `app/`, `npm run check`.
-- In a plain browser, `npm run dev` reads `app/demo/board.json` instead of the real
-  board. It holds made-up repositories for screenshots.
+- In a plain browser, `npm run dev` reads `app/demo/board.json` and `app/demo/apps.json`
+  instead of the real boards. They hold made-up repositories and apps for screenshots.
 
 </details>
 

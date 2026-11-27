@@ -7,12 +7,26 @@
   let cfg = $state<Config | null>(null)
   let rootsText = $state('')
   let error = $state('')
+  let appsDir = $state('')
+  let prereleases = $state(true)
+  let delayDays = $state(0)
+  let extraText = $state('')
+  let rulesText = $state('')
+  let appsError = $state('')
+  let appsSaved = $state(false)
   let version = $state('')
   let dialog: HTMLDivElement
 
   onMount(async () => {
     cfg = await api.settings()
     rootsText = cfg.roots.join('\n')
+    appsDir = cfg.appsDir ?? ''
+    prereleases = cfg.prereleases
+    delayDays = cfg.delayDays
+    extraText = cfg.extraApps.join('\n')
+    rulesText = Object.entries(cfg.assetRules)
+      .map(([k, v]) => `${k} = ${v}`)
+      .join('\n')
     version = await api.version()
     ;(dialog.querySelector('textarea') as HTMLTextAreaElement | null)?.focus()
   })
@@ -25,6 +39,29 @@
     } catch (e) {
       error = String(e)
     }
+  }
+
+  async function saveApps() {
+    appsError = ''
+    appsSaved = false
+    try {
+      cfg = await api.saveAppsSettings({
+        appsDir,
+        prereleases,
+        delayDays: Math.max(0, Math.round(Number(delayDays) || 0)),
+        extraApps: extraText.split('\n'),
+        rules: rulesText.split('\n'),
+      })
+      appsSaved = true
+      onchange()
+    } catch (e) {
+      appsError = String(e)
+    }
+  }
+
+  async function unhideApp(key: string) {
+    cfg = await api.setAppHidden(key, false)
+    onchange()
   }
 
   async function unhide(key: string) {
@@ -63,6 +100,38 @@
         </ul>
       {:else}
         <p class="hint">Nothing hidden. Use … on a row to hide it.</p>
+      {/if}
+    </section>
+
+    <section>
+      <h3 class="caps label">Apps</h3>
+      <label for="apps-dir" class="small">Install new apps in</label>
+      <input id="apps-dir" type="text" bind:value={appsDir} placeholder="Default: Applications in your home folder" spellcheck="false" />
+      <p class="hint">
+        Apps are installed for you only, with no admin password. An app found elsewhere (installed by hand) is updated where it is.
+      </p>
+      <label class="check"><input type="checkbox" bind:checked={prereleases} /> Offer pre-releases (alpha, beta)</label>
+      <label class="small" for="delay">Wait before offering an update (days)</label>
+      <input id="delay" type="number" min="0" max="365" bind:value={delayDays} />
+      <p class="hint">A few days' wait lets a broken release be fixed before it reaches you.</p>
+      <label for="extra" class="small">Also follow these repositories (owner/name, one per line)</label>
+      <textarea id="extra" rows="3" bind:value={extraText} spellcheck="false" placeholder="someone/their-app"></textarea>
+      <label for="rules" class="small">Download rules (owner/name = file pattern, * for any text)</label>
+      <textarea id="rules" rows="2" bind:value={rulesText} spellcheck="false" placeholder="owner/app = *-linux-x64-wpe.tar.gz"></textarea>
+      <p class="hint">Only needed when Sangraha picks the wrong file for this computer.</p>
+      {#if appsError}<p class="error" role="alert">{appsError}</p>{/if}
+      <button class="btn" onclick={saveApps}>Save app settings</button>
+      {#if appsSaved}<span class="hint" role="status"> Saved. Press refresh on the Apps tab to read the new list.</span>{/if}
+      {#if cfg && cfg.hiddenApps.length}
+        <p class="small">Hidden apps</p>
+        <ul>
+          {#each cfg.hiddenApps as key (key)}
+            <li>
+              <span class="mono">{key}</span>
+              <button class="btn ghost" onclick={() => unhideApp(key)}>Show again</button>
+            </li>
+          {/each}
+        </ul>
       {/if}
     </section>
 
@@ -132,6 +201,25 @@
   .hint {
     margin: 0;
     color: var(--muted);
+  }
+  input[type='text'],
+  input[type='number'] {
+    width: 100%;
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 2px;
+    background: var(--bg);
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  input[type='number'] {
+    width: 100px;
+  }
+  .check {
+    display: flex;
+    gap: 8px;
+    align-items: center;
   }
   textarea {
     width: 100%;

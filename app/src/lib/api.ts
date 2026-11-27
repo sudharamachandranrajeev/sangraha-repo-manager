@@ -7,12 +7,23 @@ import { invoke as tauriInvoke } from '@tauri-apps/api/core'
 const inTauri = '__TAURI_INTERNALS__' in window
 
 async function demo<T>(cmd: string): Promise<T> {
-  if (cmd === 'board' || cmd === 'refresh') {
-    const b = (await (await fetch('/demo/board.json')).json()) as Board
+  if (cmd === 'board' || cmd === 'refresh' || cmd === 'apps_board' || cmd === 'apps_refresh') {
+    const file = cmd.startsWith('apps') ? 'apps' : 'board'
+    const b = (await (await fetch(`/demo/${file}.json`)).json()) as { checkedAt: number | null }
     b.checkedAt = Math.floor(Date.now() / 1000) - 180
     return b as T
   }
-  if (cmd === 'settings' || cmd === 'set_roots' || cmd === 'set_hidden') return { roots: ['/home/you/Work'], hidden: [] } as T
+  if (cmd.startsWith('set') || cmd.startsWith('save') || cmd === 'settings')
+    return {
+      roots: ['/home/you/Work'],
+      hidden: [],
+      appsDir: null,
+      extraApps: ['someone/their-app'],
+      hiddenApps: [],
+      prereleases: true,
+      delayDays: 0,
+      assetRules: {},
+    } as T
   if (cmd === 'version') return 'demo' as T
   return undefined as T
 }
@@ -137,6 +148,78 @@ export interface Board {
 export interface Config {
   roots: string[]
   hidden: string[]
+  appsDir: string | null
+  extraApps: string[]
+  hiddenApps: string[]
+  prereleases: boolean
+  delayDays: number
+  assetRules: Record<string, string>
+}
+
+export type AppStatus = 'update' | 'unknown' | 'waiting' | 'upToDate' | 'notInstalled' | 'noBuild'
+export type Kind = 'archive' | 'appImage' | 'exe' | 'setup' | 'systemPackage' | 'apk' | 'mac'
+
+export interface Offer {
+  tag: string
+  prerelease: boolean
+  publishedAt: string | null
+  url: string
+  asset: string
+  size: number
+  kind: Kind
+  checksum: boolean
+}
+
+export interface Here {
+  version: string | null
+  path: string
+  launcher: string | null
+  bySangraha: boolean
+  previous: string | null
+}
+
+export interface AppRow {
+  key: string
+  name: string
+  repo: string
+  description: string | null
+  url: string
+  own: boolean
+  status: AppStatus
+  offer: Offer | null
+  newest: string | null
+  here: Here | null
+  android: string | null
+  notes: string[]
+  hidden: boolean
+}
+
+export interface AppCounts {
+  all: number
+  installed: number
+  updates: number
+  notInstalled: number
+  hidden: number
+}
+
+export interface AppsBoard {
+  checkedAt: number | null
+  rate: Rate | null
+  appsDir: string
+  rows: AppRow[]
+  counts: AppCounts
+  warnings: string[]
+}
+
+export interface InstallFailure {
+  unverified: boolean
+  message: string
+}
+
+export interface InstallProgress {
+  key: string
+  done: number
+  total: number
 }
 
 export const api = {
@@ -149,6 +232,21 @@ export const api = {
   openFolder: (path: string) => invoke<void>('open_folder', { path }),
   openTerminal: (path: string) => invoke<void>('open_terminal', { path }),
   version: () => invoke<string>('version'),
+  appsBoard: () => invoke<AppsBoard>('apps_board'),
+  appsRefresh: () => invoke<AppsBoard>('apps_refresh'),
+  installApp: (key: string, allowUnverified: boolean) => invoke<string>('install_app', { key, allowUnverified }),
+  rollbackApp: (key: string) => invoke<string>('rollback_app', { key }),
+  launchApp: (key: string) => invoke<void>('launch_app', { key }),
+  setAppHidden: (key: string, hidden: boolean) => invoke<Config>('set_app_hidden', { key, hidden }),
+  saveAppsSettings: (s: { appsDir: string; prereleases: boolean; delayDays: number; extraApps: string[]; rules: string[] }) =>
+    invoke<Config>('save_apps_settings', s),
+}
+
+/** Download progress while an app installs. Does nothing outside the Sangraha window. */
+export async function onInstallProgress(f: (p: InstallProgress) => void): Promise<() => void> {
+  if (!inTauri) return () => {}
+  const { listen } = await import('@tauri-apps/api/event')
+  return listen<InstallProgress>('install-progress', (e) => f(e.payload))
 }
 
 export function runAction(a: Action): Promise<void> {

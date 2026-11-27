@@ -4,12 +4,15 @@
 //! Nothing here writes to a repository. GitHub is read through the owner's own `gh` login; the
 //! token is asked for at run time and never stored.
 
+pub mod apps;
 pub mod board;
 pub mod cache;
 pub mod config;
 pub mod github;
+pub mod install;
 pub mod local;
 
+pub use apps::{AppRow, AppStatus, AppsBoard};
 pub use board::{Board, Counts, Level, Problem, ProblemKind, Row, build};
 pub use config::Config;
 
@@ -27,6 +30,11 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error("{0}")]
     Json(#[from] serde_json::Error),
+    #[error("{0}")]
+    Install(String),
+    /// The release publishes no SHA-256 for the file; installing needs the owner's yes.
+    #[error("{0}")]
+    Unverified(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -123,12 +131,82 @@ fn assemble(
     board
 }
 
+/// The Apps tab from the last GitHub answer and what is installed here. No network.
+pub fn apps_load(cfg: &Config) -> Result<AppsBoard> {
+    let cache = cache::Cache::open_default()?;
+    let login = cache.snapshot()?.map(|s| s.login);
+    Ok(apps_assemble(cache.apps()?.as_ref(), login.as_deref(), cfg))
+}
+
+/// Reads the releases of every followed app again. Uses the repository snapshot to know which
+/// of the owner's repositories have releases, reading it first if there is none yet.
+pub fn apps_refresh(cfg: &Config) -> Result<AppsBoard> {
+    let token = github::token()?;
+    let cache = cache::Cache::open_default()?;
+    let repos = match cache.snapshot()? {
+        Some(s) => s,
+        None => {
+            let s = github::fetch(&token)?;
+            cache.set_snapshot(&s)?;
+            s
+        }
+    };
+    let names = apps::followed(Some(&repos), cfg);
+    let snap = apps::fetch(&token, &names)?;
+    cache.set_apps(&snap)?;
+    Ok(apps_assemble(Some(&snap), Some(&repos.login), cfg))
+}
+
+fn apps_assemble(
+    snap: Option<&apps::AppsSnapshot>,
+    login: Option<&str>,
+    cfg: &Config,
+) -> AppsBoard {
+    let registry = install::Registry::load();
+    apps::build(snap, login, cfg, &registry, &|name| {
+        install::detect(cfg, name)
+    })
+}
+
+/// Installs or updates one app (see `install::install`).
+pub fn install_app(
+    cfg: &Config,
+    key: &str,
+    allow_unverified: bool,
+    progress: &(dyn Fn(u64, u64) + Sync),
+) -> Result<String> {
+    let cache = cache::Cache::open_default()?;
+    let snap = cache.apps()?.ok_or_else(|| {
+        Error::Install("The Apps list has not been read yet; refresh first".into())
+    })?;
+    install::install(cfg, &snap, key, allow_unverified, progress)
+}
+
 /// Seconds since the Unix epoch.
 pub fn now() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0)
+}
+
+/// Seconds since the Unix epoch for a GitHub time (`2026-11-27T14:05:00Z`).
+pub fn parse_time(iso: &str) -> Option<i64> {
+    let b = iso.as_bytes();
+    if b.len() < 19 || b[4] != b'-' || b[10] != b'T' {
+        return None;
+    }
+    let n = |r: std::ops::Range<usize>| iso.get(r)?.parse::<i64>().ok();
+    let (y, m, d) = (n(0..4)?, n(5..7)?, n(8..10)?);
+    let (hh, mm, ss) = (n(11..13)?, n(14..16)?, n(17..19)?);
+    // Days from 1970-01-01 (Howard Hinnant's days_from_civil).
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+    Some(days * 86_400 + hh * 3600 + mm * 60 + ss)
 }
 
 /// "linux x64", "windows arm64" … for the footer and, later, for picking release assets.
@@ -139,4 +217,18 @@ pub fn platform() -> String {
         other => other,
     };
     format!("{} {arch}", std::env::consts::OS)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn github_times() {
+        assert_eq!(super::parse_time("1970-01-01T00:00:00Z"), Some(0));
+        assert_eq!(
+            super::parse_time("2026-11-27T14:05:09Z"),
+            Some(1_795_788_309)
+        );
+        assert_eq!(super::parse_time("2000-02-29T00:00:00Z"), Some(951_782_400));
+        assert_eq!(super::parse_time("yesterday"), None);
+    }
 }

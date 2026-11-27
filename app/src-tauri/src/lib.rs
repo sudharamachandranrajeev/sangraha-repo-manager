@@ -1,9 +1,13 @@
-//! The Sangraha window: the board from `sangraha-core`, plus opening links, folders and terminals.
+//! The Sangraha window: the boards from `sangraha-core`, plus opening links, folders and
+//! terminals, and installing apps.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
 
-use sangraha_core::{Board, Config};
+use sangraha_core::{AppsBoard, Board, Config};
+use serde::Serialize;
+use tauri::Emitter;
 
 /// Runs blocking work (git, GitHub, SQLite) off the window's thread.
 async fn blocking<T: Send + 'static>(
@@ -139,6 +143,162 @@ fn spawn(program: &str, args: &[&str]) -> Result<(), String> {
         .map_err(|e| format!("{program}: {e}"))
 }
 
+/// The Apps tab from the last GitHub answer and what is installed here. No network.
+#[tauri::command]
+async fn apps_board() -> Result<AppsBoard, String> {
+    blocking(|| sangraha_core::apps_load(&Config::load()).map_err(|e| e.to_string())).await
+}
+
+#[tauri::command]
+async fn apps_refresh() -> Result<AppsBoard, String> {
+    blocking(|| sangraha_core::apps_refresh(&Config::load()).map_err(|e| e.to_string())).await
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Failure {
+    /// The release has no SHA-256 for the file: the window asks before trying again.
+    unverified: bool,
+    message: String,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Progress {
+    key: String,
+    done: u64,
+    total: u64,
+}
+
+/// Downloads, checks and installs one app; sends `install-progress` events while downloading.
+#[tauri::command]
+async fn install_app(
+    app: tauri::AppHandle,
+    key: String,
+    allow_unverified: bool,
+) -> Result<String, Failure> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let shown = AtomicU64::new(u64::MAX);
+        let progress = |done: u64, total: u64| {
+            let pct = (done * 100).checked_div(total).unwrap_or(0);
+            if shown.swap(pct, Ordering::Relaxed) != pct {
+                let _ = app.emit(
+                    "install-progress",
+                    Progress {
+                        key: key.clone(),
+                        done,
+                        total,
+                    },
+                );
+            }
+        };
+        sangraha_core::install_app(&Config::load(), &key, allow_unverified, &progress).map_err(
+            |e| Failure {
+                unverified: matches!(e, sangraha_core::Error::Unverified(_)),
+                message: e.to_string(),
+            },
+        )
+    })
+    .await
+    .map_err(|e| Failure {
+        unverified: false,
+        message: e.to_string(),
+    })?
+}
+
+#[tauri::command]
+async fn rollback_app(key: String) -> Result<String, String> {
+    blocking(move || sangraha_core::install::rollback(&key).map_err(|e| e.to_string())).await
+}
+
+/// Starts an installed app. Only a launcher the Apps tab itself found is started.
+#[tauri::command]
+async fn launch_app(key: String) -> Result<(), String> {
+    blocking(move || {
+        let board = sangraha_core::apps_load(&Config::load()).map_err(|e| e.to_string())?;
+        let launcher = board
+            .rows
+            .iter()
+            .find(|r| r.key == key)
+            .and_then(|r| r.here.as_ref())
+            .and_then(|h| h.launcher.clone())
+            .ok_or("Sangraha does not know how to start this app")?;
+        let mut cmd = Command::new(&launcher);
+        if let Some(dir) = launcher.parent() {
+            cmd.current_dir(dir);
+        }
+        cmd.spawn()
+            .map(|_| ())
+            .map_err(|e| format!("{}: {e}", launcher.display()))
+    })
+    .await
+}
+
+#[tauri::command]
+fn set_app_hidden(key: String, hidden: bool) -> Result<Config, String> {
+    let mut cfg = Config::load();
+    cfg.hidden_apps.retain(|k| !k.eq_ignore_ascii_case(&key));
+    if hidden {
+        cfg.hidden_apps.push(key);
+    }
+    cfg.save().map_err(|e| e.to_string())?;
+    Ok(cfg)
+}
+
+/// The Apps settings, checked: the folder must exist or be creatable, names must be owner/name,
+/// rules are `owner/name = pattern` lines.
+#[tauri::command]
+fn save_apps_settings(
+    apps_dir: String,
+    prereleases: bool,
+    delay_days: u32,
+    extra_apps: Vec<String>,
+    rules: Vec<String>,
+) -> Result<Config, String> {
+    let mut cfg = Config::load();
+    let dir = apps_dir.trim();
+    cfg.apps_dir = if dir.is_empty() {
+        None
+    } else {
+        let p = PathBuf::from(dir);
+        if !p.is_absolute() {
+            return Err(format!("{dir}: use a full path"));
+        }
+        std::fs::create_dir_all(&p).map_err(|e| format!("{dir}: {e}"))?;
+        Some(p)
+    };
+    cfg.prereleases = prereleases;
+    cfg.delay_days = delay_days.min(365);
+    let mut extra = Vec::new();
+    for e in extra_apps
+        .iter()
+        .map(|e| e.trim())
+        .filter(|e| !e.is_empty())
+    {
+        let e = e
+            .trim_start_matches("https://github.com/")
+            .trim_end_matches('/');
+        if !sangraha_core::apps::valid_name(e) {
+            return Err(format!("{e} is not owner/name"));
+        }
+        extra.push(e.to_owned());
+    }
+    cfg.extra_apps = extra;
+    cfg.asset_rules.clear();
+    for line in rules.iter().map(|l| l.trim()).filter(|l| !l.is_empty()) {
+        let (k, v) = line
+            .split_once('=')
+            .ok_or_else(|| format!("{line}: write owner/name = pattern"))?;
+        let (k, v) = (k.trim(), v.trim());
+        if !sangraha_core::apps::valid_name(k) || v.is_empty() {
+            return Err(format!("{line}: write owner/name = pattern"));
+        }
+        cfg.asset_rules.insert(k.to_owned(), v.to_owned());
+    }
+    cfg.save().map_err(|e| e.to_string())?;
+    Ok(cfg)
+}
+
 #[tauri::command]
 fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
@@ -155,6 +315,13 @@ pub fn run() {
             open_url,
             open_folder,
             open_terminal,
+            apps_board,
+            apps_refresh,
+            install_app,
+            rollback_app,
+            launch_app,
+            set_app_hidden,
+            save_apps_settings,
             version
         ])
         .run(tauri::generate_context!())

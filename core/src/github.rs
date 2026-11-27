@@ -12,7 +12,7 @@ use serde_json::{Value, json};
 
 use crate::{Error, Result};
 
-const API: &str = "https://api.github.com";
+pub(crate) const API: &str = "https://api.github.com";
 const PAGE: u32 = 25;
 
 /// The token from `GH_TOKEN`, `GITHUB_TOKEN`, or `gh auth token`. Never written anywhere.
@@ -140,7 +140,7 @@ query($cursor: String, $page: Int!) {
   }
 }"#;
 
-fn agent() -> ureq::Agent {
+pub(crate) fn agent() -> ureq::Agent {
     ureq::Agent::config_builder()
         .timeout_global(Some(Duration::from_secs(60)))
         .user_agent("sangraha")
@@ -168,7 +168,7 @@ pub fn fetch(token: &str) -> Result<Snapshot> {
     Ok(snap)
 }
 
-fn post_graphql(agent: &ureq::Agent, token: &str, body: &Value) -> Result<Value> {
+pub(crate) fn post_graphql(agent: &ureq::Agent, token: &str, body: &Value) -> Result<Value> {
     let mut last = String::new();
     // GitHub answers a busy GraphQL request with 502; one more try usually goes through.
     for _ in 0..2 {
